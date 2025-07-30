@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">CommandBar Pro - Opciones</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <div class="header-content">
+        <h1 class="options-title">
+          <span class="title-icon">⚡</span>
+          <span id="options-app-name">CommandBar Pro</span>
+        </h1>
+        <p class="options-subtitle" id="options-subtitle">Configuración Avanzada</p>
+      </div>
+    </header>
+
+    <main class="options-content">
+      <div class="options-grid">
+        <!-- Support Section -->
+        <section class="option-section support-section">
+          <h2 class="section-title support-title" id="support-title">
+            <span class="section-icon">☕</span>
+            <span>Apoya el Desarrollo</span>
+          </h2>
+          <div class="support-content">
+            <p id="support-message" class="support-message">Esta extensión ha sido desarrollada con cariño, y todas sus funciones son totalmente gratuitas. Desde lo más mínimo, puedes ayudarme a seguir manteniendo y actualizando la extensión, sería de gran ayuda.</p>
+            <a href="https://coff.ee/vandertoorm" target="_blank" class="coffee-btn">
+              <span class="coffee-icon">☕</span>
+              <span id="support-buy-coffee">Comprar un Café</span>
+            </a>
+          </div>
+        </section>
+
+        <!-- Idioma (Primera opción) -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">🌐</span>
+            <span id="language-title">Idioma</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="language-select" id="interface-language-label">Idioma de la Interfaz</label>
+                <p class="option-description" id="interface-language-desc">Selecciona el idioma de CommandBar</p>
+              </div>
+              <select id="language-select" class="option-select">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Configuración General -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">⚙️</span>
+            <span id="general-settings-title">Configuración General</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="theme-select" id="interface-theme-label">Tema de Interfaz</label>
+                <p class="option-description" id="interface-theme-desc">Selecciona el tema visual de CommandBar</p>
+              </div>
+              <select id="theme-select" class="option-select">
+                <option value="auto" id="theme-auto">Automático (Sistema)</option>
+                <option value="light" id="theme-light">Claro</option>
+                <option value="dark" id="theme-dark">Oscuro</option>
+              </select>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="animation-speed" id="animation-speed-label">Velocidad de Animaciones</label>
+                <p class="option-description" id="animation-speed-desc">Controla la velocidad de las transiciones</p>
+              </div>
+              <select id="animation-speed" class="option-select">
+                <option value="slow" id="animation-slow">Lenta</option>
+                <option value="normal" id="animation-normal">Normal</option>
+                <option value="fast" id="animation-fast">Rápida</option>
+                <option value="none" id="animation-none">Sin animaciones</option>
+              </select>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="max-results" id="max-results-label">Máximo de Resultados</label>
+                <p class="option-description" id="max-results-desc">Número máximo de sugerencias por categoría</p>
+              </div>
+              <input type="number" id="max-results" class="option-input" min="3" max="20" value="5">
+            </div>
+          </div>
+        </section>
+
+        <!-- Configuración de Búsqueda -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">🔍</span>
+            <span id="search-settings-title">Búsqueda y Resultados</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="search-sources-label">Fuentes de Búsqueda</label>
+                <p class="option-description" id="search-sources-desc">Selecciona dónde buscar resultados</p>
+              </div>
+              <div class="checkbox-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="search-tabs" checked>
+                  <span class="checkbox-label" id="search-tabs-label">Pestañas Abiertas</span>
+                </label>
+                <label class="checkbox-item">
+                  <input type="checkbox" id="search-bookmarks" checked>
+                  <span class="checkbox-label" id="search-bookmarks-label">Marcadores</span>
+                </label>
+                <label class="checkbox-item">
+                  <input type="checkbox" id="search-history" checked>
+                  <span class="checkbox-label" id="search-history-label">Historial</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="search-delay" id="search-delay-label">Retraso de Búsqueda (ms)</label>
+                <p class="option-description" id="search-delay-desc">Tiempo de espera antes de ejecutar búsqueda</p>
+              </div>
+              <input type="range" id="search-delay" class="option-range" min="0" max="1000" value="150" step="50">
+              <span class="range-value" id="search-delay-value">150ms</span>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="default-search-engine" id="default-search-engine-label">Buscador por Defecto</label>
+                <p class="option-description" id="default-search-engine-desc">Motor de búsqueda para consultas web</p>
+              </div>
+              <select id="default-search-engine" class="option-select">
+                <option value="google" id="engine-google">Google</option>
+                <option value="bing" id="engine-bing">Bing</option>
+                <option value="duckduckgo" id="engine-duckduckgo">DuckDuckGo</option>
+                <option value="yahoo" id="engine-yahoo">Yahoo</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Atajos de Teclado -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">⌨️</span>
+            <span id="keyboard-shortcuts-title">Atajos de Teclado</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="main-shortcuts-label">Atajos Principales</label>
+                <p class="option-description" id="main-shortcuts-desc">Combinaciones de teclado para CommandBar</p>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="shortcut-display">
+                  <kbd class="key">Ctrl</kbd> + <kbd class="key">K</kbd>
+                  <span class="shortcut-note" id="open-commandbar-shortcut">Abrir Command Bar</span>
+                </div>
+                <div class="shortcut-display">
+                  <kbd class="key">Ctrl</kbd> + <kbd class="key">Shift</kbd> + <kbd class="key">K</kbd>
+                  <span class="shortcut-note" id="edit-url-shortcut">Editar URL actual</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="additional-config-label">Configuración Adicional</label>
+                <p class="option-description" id="additional-config-desc">Personaliza el comportamiento de los atajos</p>
+              </div>
+              <div class="checkbox-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="prevent-site-shortcuts" checked>
+                  <span class="checkbox-label" id="prevent-site-shortcuts-label">Prevenir atajos del sitio web</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Privacidad y Datos -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">🔒</span>
+            <span id="privacy-title">Privacidad y Datos</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="data-collection-label">Recopilación de Datos</label>
+                <p class="option-description" id="data-collection-desc">Control sobre qué datos se almacenan localmente</p>
+              </div>
+              <div class="checkbox-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="store-usage-stats">
+                  <span class="checkbox-label" id="usage-stats-label">Estadísticas de uso (local)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="data-cleanup-label">Limpieza de Datos</label>
+                <p class="option-description" id="data-cleanup-desc">Gestionar datos almacenados</p>
+              </div>
+              <div class="button-group">
+                <button class="option-button secondary" id="clear-cache">
+                  <span class="button-icon">🗑️</span>
+                  <span id="clear-cache-text">Limpiar Cache</span>
+                </button>
+                <button class="option-button secondary" id="clear-stats">
+                  <span class="button-icon">📊</span>
+                  <span id="clear-stats-text">Limpiar Estadísticas</span>
+                </button>
+                <button class="option-button danger" id="reset-all">
+                  <span class="button-icon">🔄</span>
+                  <span id="reset-all-text">Restablecer Todo</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+
+      </div>
+    </main>
+
+    <footer class="options-footer">
+      <div class="footer-content">
+        <div class="footer-info">
+          <p class="footer-text" id="footer-version">CommandBar Pro v1.2.0</p>
+          <p class="footer-links">
+            <a href="#" id="view-changelog" class="footer-link">Registro de cambios</a> •
+            <a href="#" id="report-bug" class="footer-link">Reportar bug</a> •
+            <a href="#" id="view-source" class="footer-link">Ver código fuente</a>
+          </p>
+        </div>
+        <div class="footer-actions">
+          <button class="option-button secondary" id="export-settings">
+            <span class="button-icon">📤</span>
+            <span id="export-settings-text">Exportar Configuración</span>
+          </button>
+          <button class="option-button secondary" id="import-settings">
+            <span class="button-icon">📥</span>
+            <span id="import-settings-text">Importar Configuración</span>
+          </button>
+          <button class="option-button primary" id="save-options">
+            <span class="button-icon">💾</span>
+            <span id="save-changes-text">Guardar Cambios</span>
+          </button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal para confirmaciones -->
+  <div class="modal-overlay" id="modal-overlay" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Confirmar acción</h3>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-content">
+        <p class="modal-message" id="modal-message">¿Estás seguro de que quieres continuar?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="option-button secondary" id="modal-cancel">
+          <span id="modal-cancel-text">Cancelar</span>
+        </button>
+        <button class="option-button primary" id="modal-confirm">
+          <span id="modal-confirm-text">Confirmar</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificación toast -->
+  <div class="toast" id="toast" style="display: none;">
+    <span class="toast-icon" id="toast-icon">✅</span>
+    <span class="toast-message" id="toast-message">Configuración guardada correctamente</span>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="options.js"></script>
+</body>
+</html> 

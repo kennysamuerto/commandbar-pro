@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="popup-page-title">CommandBar Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <h1 class="popup-title">
+        <span class="popup-icon">⚡</span>
+        <span id="popup-app-name">CommandBar Pro</span>
+      </h1>
+      <div class="popup-version" id="popup-version">v1.2.0</div>
+    </div>
+    
+    <div class="popup-content">
+      <div class="feature-section">
+        <h2 id="popup-keyboard-shortcuts">Atajos de Teclado</h2>
+        <div class="shortcut-display">
+          <kbd class="key">Ctrl</kbd> + <kbd class="key">K</kbd>
+          <span class="shortcut-desc" id="popup-open-commandbar">Abrir Command Bar</span>
+        </div>
+        <div class="shortcut-display" style="margin-top: 8px;">
+          <kbd class="key">Ctrl</kbd> + <kbd class="key">Shift</kbd> + <kbd class="key">K</kbd>
+          <span class="shortcut-desc" id="popup-edit-current-url">Editar URL actual</span>
+        </div>
+      </div>
+      
+      <!-- Support Section -->
+      <div class="support-section">
+        <h2 id="support-title" class="support-title">☕ Apoya el Desarrollo</h2>
+        <p id="support-message" class="support-message">Esta extensión ha sido desarrollada con cariño, y todas sus funciones son totalmente gratuitas. Desde lo más mínimo, puedes ayudarme a seguir manteniendo y actualizando la extensión, sería de gran ayuda.</p>
+        <a href="https://coff.ee/vandertoorm" target="_blank" class="coffee-btn">
+          <span class="coffee-icon">☕</span>
+          <span id="support-buy-coffee">Comprar un Café</span>
+        </a>
+      </div>
+      
+      <div class="feature-section">
+        <h2 id="popup-features">Funcionalidades</h2>
+        <div class="feature-grid">
+          <div class="feature-item">
+            <span class="feature-icon">🔍</span>
+            <span class="feature-text" id="popup-universal-search">Búsqueda Universal</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🌐</span>
+            <span class="feature-text" id="popup-quick-navigation">Navegación Rápida</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">📑</span>
+            <span class="feature-text" id="popup-tab-management">Gestión de Pestañas</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🔖</span>
+            <span class="feature-text" id="popup-bookmark-access">Acceso a Marcadores</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">📚</span>
+            <span class="feature-text" id="popup-history-search">Búsqueda en Historial</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <span class="feature-text" id="popup-quick-commands">Comandos Rápidos</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="feature-section">
+        <h2 id="popup-available-commands">Comandos Disponibles</h2>
+        <div class="command-list">
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-new-tab">nueva pestaña</span>
+            <span class="command-desc" id="popup-cmd-new-tab-desc">Crear nueva pestaña</span>
+          </div>
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-pin">pinear</span>
+            <span class="command-desc" id="popup-cmd-pin-desc">Pinear pestaña actual</span>
+          </div>
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-close">cerrar</span>
+            <span class="command-desc" id="popup-cmd-close-desc">Cerrar pestaña actual</span>
+          </div>
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-duplicate">duplicar</span>
+            <span class="command-desc" id="popup-cmd-duplicate-desc">Duplicar pestaña actual</span>
+          </div>
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-bookmarks">marcadores</span>
+            <span class="command-desc" id="popup-cmd-bookmarks-desc">Mostrar marcadores</span>
+          </div>
+          <div class="command-item">
+            <span class="command-prefix">/</span>
+            <span class="command-name" id="popup-cmd-history">historial</span>
+            <span class="command-desc" id="popup-cmd-history-desc">Mostrar historial</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="feature-section">
+        <h2 id="popup-search-types">Tipos de Búsqueda</h2>
+        <div class="search-types">
+          <div class="search-type">
+            <span class="search-icon">🔍</span>
+            <div class="search-info">
+              <span class="search-title" id="popup-web-search-title">Búsqueda Web</span>
+              <span class="search-desc" id="popup-web-search-desc">Busca en Google, Bing o DuckDuckGo</span>
+            </div>
+          </div>
+          <div class="search-type">
+            <span class="search-icon">🌐</span>
+            <div class="search-info">
+              <span class="search-title" id="popup-direct-nav-title">Navegación Directa</span>
+              <span class="search-desc" id="popup-direct-nav-desc">Escribe una URL para navegar</span>
+            </div>
+          </div>
+          <div class="search-type">
+            <span class="search-icon">📑</span>
+            <div class="search-info">
+              <span class="search-title" id="popup-open-tabs-title">Pestañas Abiertas</span>
+              <span class="search-desc" id="popup-open-tabs-desc">Busca y cambia entre pestañas</span>
+            </div>
+          </div>
+          <div class="search-type">
+            <span class="search-icon">🔖</span>
+            <div class="search-info">
+              <span class="search-title" id="popup-bookmarks-title">Marcadores</span>
+              <span class="search-desc" id="popup-bookmarks-desc">Busca en tus marcadores guardados</span>
+            </div>
+          </div>
+          <div class="search-type">
+            <span class="search-icon">📚</span>
+            <div class="search-info">
+              <span class="search-title" id="popup-history-title">Historial</span>
+              <span class="search-desc" id="popup-history-desc">Busca en tu historial de navegación</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="feature-section">
+        <h2 id="popup-configuration">Configuración</h2>
+        <div class="settings-grid">
+          <label class="setting-item">
+            <input type="checkbox" id="dark-mode" class="setting-checkbox">
+            <span class="setting-label" id="popup-dark-theme">Tema Oscuro</span>
+          </label>
+          <label class="setting-item">
+            <input type="checkbox" id="auto-focus" class="setting-checkbox" checked>
+            <span class="setting-label" id="popup-auto-focus">Auto-focus en Input</span>
+          </label>
+          <label class="setting-item">
+            <input type="checkbox" id="quick-actions" class="setting-checkbox" checked>
+            <span class="setting-label" id="popup-quick-actions">Acciones Rápidas</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <div class="popup-footer">
+      <button class="action-btn primary" id="test-commandbar">
+        <span class="btn-icon">🚀</span>
+        <span id="popup-try-commandbar">Probar Command Bar</span>
+      </button>
+      <button class="action-btn secondary" id="open-options">
+        <span class="btn-icon">⚙️</span>
+        <span id="popup-advanced-settings">Configuración Avanzada</span>
+      </button>
+      <button class="action-btn secondary" id="change-language">
+        <span class="btn-icon">🌐</span>
+        <span id="popup-change-language">Cambiar Idioma</span>
+      </button>
+    </div>
+    
+    <div class="popup-tips">
+      <div class="tip-item">
+        <span class="tip-icon">💡</span>
+        <span class="tip-text" id="popup-tip-slash">Tip: Usa "/" al inicio para comandos específicos</span>
+      </div>
+      <div class="tip-item">
+        <span class="tip-icon">🔥</span>
+        <span class="tip-text" id="popup-tip-url">Escribe una URL para navegación directa</span>
+      </div>
+    </div>
+  </div>
+  
+  <script src="i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html> 

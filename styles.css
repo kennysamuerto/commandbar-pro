@@ -1,0 +1,526 @@
+/* Estilos para CommandBar Pro */
+
+#commandbar-container {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.commandbar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  animation: commandbar-fade-in 0.15s ease-out;
+}
+
+@keyframes commandbar-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.commandbar-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 
+              0 8px 25px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow: hidden;
+  animation: commandbar-slide-in 0.2s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes commandbar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.commandbar-header {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e5e5e5;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+#commandbar-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  background: transparent;
+  color: #333;
+  padding: 8px 0;
+  font-weight: 400;
+  position: relative;
+  z-index: 3;
+}
+
+#commandbar-input::placeholder {
+  color: #888;
+}
+
+/* Header con posición relativa para autocompletado */
+.commandbar-header {
+  position: relative;
+}
+
+/* Favicon hint estilo Arc */
+.commandbar-favicon-hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e5e5;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  animation: fadeInDown 0.15s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.favicon-img {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.hint-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hint-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hint-url {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hint-action {
+  font-size: 11px;
+  color: #888;
+  background: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+  white-space: nowrap;
+}
+
+/* Modo oscuro para favicon hint */
+@media (prefers-color-scheme: dark) {
+  .commandbar-favicon-hint {
+    background: rgba(30, 30, 30, 0.95);
+    border-color: #404040;
+  }
+  
+  .hint-title {
+    color: #e0e0e0;
+  }
+  
+  .hint-url {
+    color: #aaa;
+  }
+  
+  .hint-action {
+    background: #333;
+    color: #ccc;
+  }
+}
+
+.commandbar-close-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.commandbar-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.commandbar-content {
+  max-height: 60vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.commandbar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.commandbar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.commandbar-content::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 3px;
+}
+
+.commandbar-content::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b0;
+}
+
+.commandbar-suggestions {
+  padding: 8px 0;
+}
+
+.commandbar-section {
+  margin-bottom: 8px;
+}
+
+.commandbar-section:last-child {
+  margin-bottom: 0;
+}
+
+.commandbar-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 16px 4px;
+  margin-bottom: 4px;
+}
+
+.commandbar-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
+  position: relative;
+  gap: 12px;
+}
+
+.commandbar-item:hover,
+.commandbar-item.selected {
+  background: linear-gradient(90deg, #f0f8ff 0%, #e6f3ff 100%);
+  border-left-color: #007acc;
+}
+
+.commandbar-item.selected {
+  background: linear-gradient(90deg, #e6f3ff 0%, #d9ecff 100%);
+}
+
+.commandbar-icon {
+  font-size: 16px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.commandbar-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.commandbar-text {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.commandbar-url {
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+}
+
+.commandbar-shortcut {
+  font-size: 11px;
+  color: #666;
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  border: 1px solid #e0e0e0;
+}
+
+/* Tema oscuro */
+@media (prefers-color-scheme: dark) {
+  .commandbar-modal {
+    background: #1e1e1e;
+    border: 1px solid #404040;
+  }
+  
+  .commandbar-header {
+    background: linear-gradient(135deg, #252525 0%, #1e1e1e 100%);
+    border-bottom-color: #404040;
+  }
+  
+  #commandbar-input {
+    color: #e0e0e0;
+  }
+  
+  #commandbar-input::placeholder {
+    color: #888;
+  }
+  
+  .commandbar-close-btn {
+    color: #ccc;
+  }
+  
+  .commandbar-close-btn:hover {
+    background: #333;
+    color: #fff;
+  }
+  
+  .commandbar-section-title {
+    color: #aaa;
+  }
+  
+  .commandbar-item:hover,
+  .commandbar-item.selected {
+    background: linear-gradient(90deg, #2d3748 0%, #1a202c 100%);
+    border-left-color: #4299e1;
+  }
+  
+  .commandbar-item.selected {
+    background: linear-gradient(90deg, #1a202c 0%, #2d3748 100%);
+  }
+  
+  .commandbar-text {
+    color: #e0e0e0;
+  }
+  
+  .commandbar-url {
+    color: #999;
+  }
+  
+  .commandbar-shortcut {
+    background: #333;
+    color: #ccc;
+    border-color: #555;
+  }
+  
+  .commandbar-content::-webkit-scrollbar-thumb {
+    background: #555;
+  }
+  
+  .commandbar-content::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+}
+
+/* Animaciones para elementos dinámicos */
+.commandbar-item {
+  animation: commandbar-item-fade-in 0.1s ease-out;
+}
+
+@keyframes commandbar-item-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .commandbar-overlay {
+    padding-top: 5vh;
+  }
+  
+  .commandbar-modal {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .commandbar-header {
+    padding: 12px;
+  }
+  
+  #commandbar-input {
+    font-size: 16px; /* Prevenir zoom en iOS */
+  }
+  
+  .commandbar-item {
+    padding: 14px 12px;
+  }
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .commandbar-overlay,
+  .commandbar-modal,
+  .commandbar-item {
+    animation: none;
+  }
+  
+  .commandbar-item {
+    transition: none;
+  }
+}
+
+/* Focus visible para navegación por teclado */
+.commandbar-item:focus-visible {
+  outline: 2px solid #007acc;
+  outline-offset: -2px;
+}
+
+/* Estados adicionales */
+.commandbar-item[data-action="new-tab"] .commandbar-icon,
+.commandbar-item[data-action="new-window"] .commandbar-icon {
+  color: #28a745;
+}
+
+.commandbar-item[data-action="close-tab"] .commandbar-icon {
+  color: #dc3545;
+}
+
+.commandbar-item[data-action="pin-tab"] .commandbar-icon {
+  color: #ffc107;
+}
+
+.commandbar-item[data-action*="search"] .commandbar-icon {
+  color: #007acc;
+}
+
+/* Sin resultados */
+.commandbar-no-results {
+  padding: 12px 16px;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Hint para Tab */
+.commandbar-tab-hint {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  z-index: 15;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Hint de modo edición */
+.commandbar-edit-hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  animation: fadeInDown 0.15s ease-out;
+}
+
+.edit-hint-icon {
+  font-size: 14px;
+}
+
+.edit-hint-text {
+  font-size: 12px;
+  color: #856404;
+  font-weight: 500;
+}
+
+/* Modo oscuro para hint de edición */
+@media (prefers-color-scheme: dark) {
+  .commandbar-edit-hint {
+    background: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.4);
+  }
+  
+  .edit-hint-text {
+    color: #ffc107;
+  }
+} 

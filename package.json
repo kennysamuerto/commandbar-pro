@@ -1,0 +1,94 @@
+{
+  "name": "commandbar-pro",
+  "version": "1.2.0",
+  "description": "Command Bar avanzada para Chrome inspirada en Arc Browser",
+  "main": "background.js",
+  "scripts": {
+    "build": "echo 'Extensión lista para cargar en Chrome'",
+    "dev": "echo 'Cargar en chrome://extensions/ en modo desarrollador'",
+    "package": "zip -r commandbar-pro-v1.0.0.zip . -x '*.git*' 'node_modules/*' 'package*.json' '.DS_Store'",
+    "lint": "echo 'Verificar sintaxis de archivos JavaScript'",
+    "test": "echo 'Ejecutar en Chrome para pruebas'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "command-bar",
+    "productivity",
+    "navigation",
+    "search",
+    "browser",
+    "arc-browser",
+    "raycast",
+    "alfred"
+  ],
+  "author": {
+    "name": "CommandBar Pro Team",
+    "email": "contacto@commandbarpro.com",
+    "url": "https://github.com/usuario/commandbar-pro"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usuario/commandbar-pro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/usuario/commandbar-pro/issues"
+  },
+  "homepage": "https://github.com/usuario/commandbar-pro#readme",
+  "engines": {
+    "chrome": ">=88.0"
+  },
+  "permissions": [
+    "tabs",
+    "bookmarks",
+    "history",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "manifest_version": 3,
+  "chrome_extension": {
+    "minimum_chrome_version": "88",
+    "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^2.0.0"
+  },
+  "files": [
+    "manifest.json",
+    "background.js",
+    "content.js",
+    "i18n.js",
+    "styles.css",
+    "popup.html",
+    "popup.css",
+    "popup.js",
+    "options.html",
+    "options.css",
+    "options.js",
+    "icons/",
+    "README.md"
+  ],
+  "extensionFeatures": {
+    "quickSearch": true,
+    "tabManagement": true,
+    "bookmarkIntegration": true,
+    "historySearch": true,
+    "keyboardShortcuts": true,
+    "darkMode": true,
+    "responsiveDesign": true,
+    "privacyFocused": true
+  },
+  "supportedLanguages": [
+    "es",
+    "en"
+  ],
+  "compatibility": {
+    "chrome": ">=88.0",
+    "chromium": ">=88.0",
+    "edge": ">=88.0"
+  }
+} 
