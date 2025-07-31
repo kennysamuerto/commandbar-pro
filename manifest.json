@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CommandBar Pro",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Advanced Command Bar for Chrome inspired by Arc Browser",
   "permissions": [
     "tabs",

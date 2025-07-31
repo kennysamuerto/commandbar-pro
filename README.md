@@ -2,7 +2,7 @@
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?style=for-the-badge&logo=googlechrome)](https://chrome.google.com/webstore/detail/commandbar-pro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.2.0-brightgreen?style=for-the-badge)](https://github.com/kennysamuerto/commandbar-pro)
+[![Version](https://img.shields.io/badge/version-1.2.1-brightgreen?style=for-the-badge)](https://github.com/kennysamuerto/commandbar-pro)
 [![Privacy First](https://img.shields.io/badge/Privacy-First-ff69b4?style=for-the-badge&logo=shield)](PRIVACY.md)
 
 <!-- Language Selection / Selección de Idioma -->

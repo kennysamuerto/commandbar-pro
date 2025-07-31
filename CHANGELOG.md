@@ -18,6 +18,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### [1.2.1] - 2025-07-31
+
+#### 🐛 Fixed
+- **Console Spam Elimination**: Removed remaining `console.log` statements that were causing error spam in extension management page
+- **Content Script Robustness**: Improved initialization error handling for restricted pages (chrome://, about:blank, etc.)
+- **Silent Error Handling**: Added proper checks for `chrome.storage` availability before initialization
+- **Production Ready**: Clean console output for end users with no unnecessary logging
+
+#### 🔧 Technical
+- Enhanced content script initialization with availability checks
+- Silent fallback handling for pages where extension APIs are not accessible
+- Improved error handling in i18n, options, popup, and background scripts
+- Better compatibility with restricted websites and internal Chrome pages
+
 ### [1.2.0] - 2025-07-31
 
 #### ✨ Added
@@ -131,6 +145,20 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.2.1] - 2025-07-31
+
+#### 🐛 Corregido
+- **Eliminación de Spam en Consola**: Removidos los `console.log` restantes que causaban spam de errores en la página de gestión de extensiones
+- **Robustez del Content Script**: Mejorado el manejo de errores de inicialización para páginas restringidas (chrome://, about:blank, etc.)
+- **Manejo Silencioso de Errores**: Agregadas verificaciones adecuadas de disponibilidad de `chrome.storage` antes de la inicialización
+- **Listo para Producción**: Consola limpia para usuarios finales sin logging innecesario
+
+#### 🔧 Técnico
+- Mejorada inicialización del content script con verificaciones de disponibilidad
+- Manejo silencioso de fallback para páginas donde las APIs de extensión no son accesibles
+- Mejor manejo de errores en scripts de i18n, options, popup y background
+- Mejor compatibilidad con sitios web restringidos y páginas internas de Chrome
 
 ### [1.2.0] - 2025-07-31
 
