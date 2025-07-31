@@ -708,12 +708,17 @@ class I18n {
   
   async loadLanguage() {
     try {
-      const result = await chrome.storage.sync.get(['language']);
-      if (result.language && this.translations[result.language]) {
-        this.currentLanguage = result.language;
+      const lang = await this.getStoredLanguage();
+      
+      if (this.translations[lang]) {
+        this.currentLanguage = lang;
+      } else {
+        // Error silencioso, usar idioma por defecto
+        this.currentLanguage = this.defaultLanguage;
       }
     } catch (error) {
-      console.log('Error loading language, using default');
+      // Error silencioso, usar idioma por defecto
+      this.currentLanguage = this.defaultLanguage;
     }
   }
   

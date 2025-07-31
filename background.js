@@ -793,7 +793,7 @@ async function autoOpenCommandBarInNewTab(tabId, delay = 100) {
                 console.error('❌ Content script aún no disponible, intentando inyección...');
                 const injected = await forceInjectCommandBar(newTab.id, 'toggle_commandbar');
                 if (injected) {
-                  console.log('✅ CommandBar abierto via inyección en página de extensión');
+                  // Éxito silencioso
                 } else {
                   console.error('❌ Inyección también falló en página de extensión - Esto es muy raro, reintentando...');
                   
@@ -802,7 +802,7 @@ async function autoOpenCommandBarInNewTab(tabId, delay = 100) {
                     try {
                       const finalInjected = await forceInjectCommandBar(newTab.id, 'toggle_commandbar');
                       if (finalInjected) {
-                        console.log('✅ CommandBar finalmente abierto en reintento');
+                        // Éxito silencioso en reintento
                       } else {
                         console.error('❌ Todos los intentos fallaron para página de extensión');
                       }
@@ -832,7 +832,7 @@ async function autoOpenCommandBarInNewTab(tabId, delay = 100) {
             console.error('❌ Content script falló, intentando inyección forzada:', error.message);
             const injected = await forceInjectCommandBar(tabId, 'toggle_commandbar');
             if (injected) {
-              console.log('✅ CommandBar abierto via inyección forzada');
+              // Éxito silencioso
             } else {
               console.error('❌ Inyección forzada también falló');
             }

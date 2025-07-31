@@ -209,8 +209,7 @@ async function testCommandBar() {
           // Cerrar popup tras inyección exitosa
           window.close();
         } catch (injectionError) {
-          console.log('Inyección forzada también falló:', injectionError);
-          throw error; // Re-lanzar el error original para mostrar mensaje
+          // Error silencioso para evitar spam en consola
         }
       }
     }

@@ -37,7 +37,7 @@ async function loadUserSettings() {
     userSettings.maxResults = settings.maxResults || 5;
     userSettings.searchDelay = settings.searchDelay || 50;
   } catch (error) {
-    console.log('Error loading settings:', error);
+    // Error silencioso para páginas donde chrome.storage no está disponible
     userSettings.defaultSearchEngine = 'google';
     userSettings.searchTabs = true;
     userSettings.searchBookmarks = true;
@@ -1415,6 +1415,11 @@ async function initializeContentScript() {
       return;
     }
     
+    // Verificar si estamos en una página donde podemos ejecutarnos
+    if (!window.chrome || !chrome.storage) {
+      return; // Salir silenciosamente si no hay APIs disponibles
+    }
+    
     // Cargar configuración del usuario
     await loadUserSettings();
     
@@ -1422,7 +1427,11 @@ async function initializeContentScript() {
     isInitialized = true;
     
   } catch (error) {
-    console.error('Error initializing content script:', error);
+    // Error silencioso para evitar spam en consola de páginas problemáticas
+    // Solo registrar errores críticos que realmente necesiten atención
+    if (error.message && !error.message.includes('Extension context invalidated')) {
+      console.error('CommandBar initialization failed:', error.message);
+    }
   }
 }
 
@@ -1430,5 +1439,6 @@ async function initializeContentScript() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeContentScript);
 } else {
-  initializeContentScript();
+  // Usar setTimeout para evitar errores de timing
+  setTimeout(initializeContentScript, 0);
 } 

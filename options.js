@@ -142,7 +142,7 @@ function initializeOptions() {
       try {
         recommendedText = ` (${i18nInstance.t('options.searchSettings.searchDelayRecommended')})`;
       } catch (error) {
-        console.log('Error getting translation for recommended text in slider:', error);
+        // Error silencioso, usar fallback
         recommendedText = ' (Recomendado)'; // Fallback
       }
     }
@@ -246,7 +246,7 @@ function applySettingsToUI() {
     try {
       recommendedText = ` (${i18nInstance.t('options.searchSettings.searchDelayRecommended')})`;
     } catch (error) {
-      console.log('Error getting translation for recommended text:', error);
+      // Error silencioso, usar fallback
       recommendedText = ' (Recomendado)'; // Fallback
     }
   }
@@ -506,8 +506,6 @@ function updateInterface() {
     return;
   }
   
-  console.log('✅ Actualizando interfaz con traducciones funcionando');
-  
   // Actualizar atributo lang del HTML
   document.documentElement.lang = i18nInstance.getCurrentLanguage();
   
@@ -610,7 +608,6 @@ function updateInterface() {
   // Actualizar atajos de teclado según la plataforma
   updateKeyboardShortcuts();
   
-  console.log('✅ Interfaz actualizada (sección experimental en inglés hardcodeado)');
 }
 
 // Guardar configuración
