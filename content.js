@@ -564,6 +564,11 @@ function navigateSuggestions(direction) {
 async function performSearch(query) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
+  // Solo mostrar estado de carga si la búsqueda toma más de 100ms
+  const loadingTimeout = setTimeout(() => {
+    suggestions.className = 'commandbar-suggestions loading';
+  }, 100);
+  
   // Trackear búsquedas (solo si está habilitado)
   trackUsageLocal('search_performed', { 
     type: isURL(query) ? 'url' : query.startsWith('/') ? 'command' : 'text',
@@ -572,11 +577,14 @@ async function performSearch(query) {
   
   // Detectar tipo de búsqueda
   if (isURL(query)) {
+    clearTimeout(loadingTimeout);
     showURLSuggestions(query);
   } else if (query.startsWith('/')) {
+    clearTimeout(loadingTimeout);
     showCommandSuggestions(query.slice(1));
   } else {
-    showSearchSuggestions(query);
+    await showSearchSuggestions(query);
+    clearTimeout(loadingTimeout);
   }
 }
 
@@ -590,6 +598,9 @@ function isURL(text) {
 function showURLSuggestions(url) {
   const suggestions = document.getElementById('commandbar-suggestions');
   const cleanUrl = url.startsWith('http') ? url : `https://${url}`;
+  
+  // Limpiar estado de carga
+  suggestions.className = 'commandbar-suggestions';
   
   suggestions.innerHTML = `
     <div class="commandbar-section">
@@ -661,6 +672,9 @@ function showAllCommands(filter = '') {
   }
   
   html += '</div>';
+  
+  // Limpiar estado de carga
+  suggestions.className = 'commandbar-suggestions';
   suggestions.innerHTML = html;
 }
 
@@ -671,84 +685,83 @@ function showCommandSuggestions(command) {
 
 // Mostrar sugerencias de búsqueda
 async function showSearchSuggestions(query) {
-  const input = document.getElementById('commandbar-input');
-  const suggestionsContainer = document.getElementById('commandbar-suggestions');
+  const suggestions = document.getElementById('commandbar-suggestions');
   
-  if (!input || !suggestionsContainer) return;
-  
-  // Limpiar sugerencias anteriores
-  suggestionsContainer.innerHTML = '';
+  // Limpiar estado de carga
+  suggestions.className = 'commandbar-suggestions';
   
   let hasResults = false;
   
-  try {
-    // Determinar qué fuentes buscar basado en configuración
-    const searchPromises = [];
-    
-    if (userSettings.searchTabs) {
-      searchPromises.push(searchInTabs(query));
-    }
-    
-    if (userSettings.searchBookmarks) {
-      searchPromises.push(searchInBookmarks(query));
-    }
-    
-    if (userSettings.searchHistory) {
-      searchPromises.push(searchInHistory(query));
-    }
-    
-    // Ejecutar búsquedas en paralelo
-    const results = await Promise.all(searchPromises);
-    
-    // Procesar resultados
-    results.forEach(result => {
-      if (result) {
+  // Buscar en pestañas si está habilitado
+  if (userSettings.searchTabs) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'search_tabs', query });
+      if (response.success && response.tabs.length > 0) {
+        appendTabResults(response.tabs);
         hasResults = true;
       }
-    });
-    
-    // Agregar sugerencias de búsqueda web si hay texto pero pocos resultados
-    if (query.trim() && (!hasResults || suggestionsContainer.children.length < 3)) {
-      const engines = [
-        { key: 'google', name: i18n.t('search.searchInGoogle', { query }) },
-        { key: 'bing', name: i18n.t('search.searchInBing', { query }) },
-        { key: 'duckduckgo', name: i18n.t('search.searchInDuckDuckGo', { query }) },
-        { key: 'yahoo', name: i18n.t('search.searchInYahoo', { query }) },
-        { key: 'perplexity', name: i18n.t('search.searchInPerplexity', { query }) }
-      ];
-      
-      // Crear sección de búsqueda web
-      const webSection = document.createElement('div');
-      webSection.className = 'commandbar-section';
-      webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
-      
-      engines.forEach(engine => {
-        const item = document.createElement('div');
-        item.className = 'commandbar-item';
-        item.dataset.action = `${engine.key}-search`;
-        item.dataset.query = query;
-        item.innerHTML = `
-          <span class="commandbar-icon">🔍</span>
-          <span class="commandbar-text">${engine.name}</span>
-        `;
-        webSection.appendChild(item);
-      });
-      
-      suggestionsContainer.appendChild(webSection);
-      hasResults = true;
+    } catch (error) {
+      // Error silencioso
     }
-    
-  } catch (error) {
-    console.error('Error in search suggestions:', error);
   }
   
-  // Si no hay resultados, mostrar mensaje
+  // Buscar en bookmarks si está habilitado
+  if (userSettings.searchBookmarks) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'search_bookmarks', query });
+      if (response.success && response.bookmarks.length > 0) {
+        appendBookmarkResults(response.bookmarks);
+        hasResults = true;
+      }
+    } catch (error) {
+      // Error silencioso
+    }
+  }
+  
+  // Buscar en historial si está habilitado
+  if (userSettings.searchHistory) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'search_history', query });
+      if (response.success && response.history.length > 0) {
+        appendHistoryResults(response.history);
+        hasResults = true;
+      }
+    } catch (error) {
+      // Error silencioso
+    }
+  }
+  
+  // Si no hay resultados de ninguna fuente, mostrar estado vacío
   if (!hasResults) {
-    suggestionsContainer.innerHTML = `
-      <div class="commandbar-no-results">
-        <span>${i18n.t('search.noResults')}</span>
-      </div>
-    `;
+    showEmptyState();
+  } else {
+    // Agregar sugerencias de búsqueda web
+    const engines = [
+      { key: 'google', name: i18n.t('search.searchInGoogle', { query }) },
+      { key: 'bing', name: i18n.t('search.searchInBing', { query }) },
+      { key: 'duckduckgo', name: i18n.t('search.searchInDuckDuckGo', { query }) },
+      { key: 'yahoo', name: i18n.t('search.searchInYahoo', { query }) },
+      { key: 'perplexity', name: i18n.t('search.searchInPerplexity', { query }) }
+    ];
+    
+    // Crear sección de búsqueda web
+    const webSection = document.createElement('div');
+    webSection.className = 'commandbar-section';
+    webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
+    
+    engines.forEach(engine => {
+      const item = document.createElement('div');
+      item.className = 'commandbar-item';
+      item.dataset.action = `${engine.key}-search`;
+      item.dataset.query = query;
+      item.innerHTML = `
+        <span class="commandbar-icon">🔍</span>
+        <span class="commandbar-text">${engine.name}</span>
+      `;
+      webSection.appendChild(item);
+    });
+    
+    suggestions.appendChild(webSection);
   }
 }
 
@@ -813,6 +826,11 @@ async function searchInHistory(query) {
 function appendTabResults(tabs) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
+  // Limpiar estado de carga si hay resultados
+  if (tabs.length > 0) {
+    suggestions.className = 'commandbar-suggestions';
+  }
+  
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.openTabs')}</div>`;
   tabs.slice(0, userSettings.maxResults).forEach(tab => {
     const favicon = tab.favIconUrl || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23666" d="M8 0C3.6 0 0 3.6 0 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8z"/></svg>';
@@ -833,6 +851,11 @@ function appendTabResults(tabs) {
 function appendBookmarkResults(bookmarks) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
+  // Limpiar estado de carga si hay resultados
+  if (bookmarks.length > 0) {
+    suggestions.className = 'commandbar-suggestions';
+  }
+  
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.bookmarks')}</div>`;
   bookmarks.slice(0, userSettings.maxResults).forEach(bookmark => {
     if (bookmark.url) {
@@ -850,9 +873,25 @@ function appendBookmarkResults(bookmarks) {
   suggestions.innerHTML += html;
 }
 
+// Mostrar estado vacío cuando no hay resultados
+function showEmptyState() {
+  const suggestions = document.getElementById('commandbar-suggestions');
+  suggestions.className = 'commandbar-suggestions empty';
+  suggestions.innerHTML = '';
+}
+
 // Agregar resultados de historial
 function appendHistoryResults(history) {
   const suggestions = document.getElementById('commandbar-suggestions');
+  
+  // Limpiar estado de carga si hay resultados
+  if (history.length > 0) {
+    suggestions.className = 'commandbar-suggestions';
+  } else {
+    // Mostrar estado vacío si no hay resultados
+    showEmptyState();
+    return;
+  }
   
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.history')}</div>`;
   history.slice(0, userSettings.maxResults).forEach(item => {
@@ -873,6 +912,9 @@ function appendHistoryResults(history) {
 function showDefaultSuggestions() {
   const suggestions = document.getElementById('commandbar-suggestions');
   const modifierKey = getModifierKey();
+  
+  // Limpiar estado de carga
+  suggestions.className = 'commandbar-suggestions';
   
   suggestions.innerHTML = `
     <div class="commandbar-section">
@@ -1442,4 +1484,4 @@ if (document.readyState === 'loading') {
 } else {
   // Usar setTimeout para evitar errores de timing
   setTimeout(initializeContentScript, 0);
-} 
+}

@@ -207,37 +207,88 @@
 
 .commandbar-content {
   max-height: 60vh;
+  min-height: 200px; /* Altura mínima para evitar cambios bruscos */
   overflow-y: auto;
   scroll-behavior: smooth;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  /* Ocultar completamente la barra de desplazamiento */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
 }
 
+/* Ocultar scrollbar en WebKit (Chrome, Safari, Edge) */
 .commandbar-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.commandbar-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.commandbar-content::-webkit-scrollbar-thumb {
-  background: #d0d0d0;
-  border-radius: 3px;
-}
-
-.commandbar-content::-webkit-scrollbar-thumb:hover {
-  background: #b0b0b0;
+  display: none;
 }
 
 .commandbar-suggestions {
   padding: 8px 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top;
+  flex: 1;
+  min-height: 120px; /* Altura mínima para las sugerencias */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Contenedor para mantener altura estable */
+.commandbar-suggestions-container {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .commandbar-section {
   margin-bottom: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top;
+  opacity: 1;
+  transform: translateY(0);
+  flex-shrink: 0; /* Evitar que se comprima */
 }
 
 .commandbar-section:last-child {
   margin-bottom: 0;
+}
+
+/* Estado de carga para mantener altura estable */
+.commandbar-suggestions.loading {
+  justify-content: center;
+  align-items: center;
+}
+
+.commandbar-suggestions.loading::after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e0e0e0;
+  border-top: 2px solid #007acc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Estado vacío con altura mínima */
+.commandbar-suggestions.empty {
+  justify-content: center;
+  align-items: center;
+  color: #888;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.commandbar-suggestions.empty::after {
+  content: 'Escribe para buscar...';
+  opacity: 0.6;
 }
 
 .commandbar-section-title {
@@ -248,6 +299,7 @@
   letter-spacing: 0.5px;
   padding: 8px 16px 4px;
   margin-bottom: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .commandbar-item {
@@ -255,16 +307,20 @@
   align-items: center;
   padding: 12px 16px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-left: 3px solid transparent;
   position: relative;
   gap: 12px;
+  transform-origin: left;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .commandbar-item:hover,
 .commandbar-item.selected {
   background: linear-gradient(90deg, #f0f8ff 0%, #e6f3ff 100%);
   border-left-color: #007acc;
+  transform: translateX(4px);
 }
 
 .commandbar-item.selected {
@@ -334,12 +390,11 @@
   }
   
   .commandbar-close-btn {
-    color: #ccc;
+    color: #888;
   }
   
   .commandbar-close-btn:hover {
-    background: #333;
-    color: #fff;
+    color: #e0e0e0;
   }
   
   .commandbar-section-title {
@@ -348,12 +403,11 @@
   
   .commandbar-item:hover,
   .commandbar-item.selected {
-    background: linear-gradient(90deg, #2d3748 0%, #1a202c 100%);
-    border-left-color: #4299e1;
+    background: linear-gradient(90deg, #2a2a2a 0%, #252525 100%);
   }
   
   .commandbar-item.selected {
-    background: linear-gradient(90deg, #1a202c 0%, #2d3748 100%);
+    background: linear-gradient(90deg, #252525 0%, #202020 100%);
   }
   
   .commandbar-text {
@@ -361,21 +415,13 @@
   }
   
   .commandbar-url {
-    color: #999;
+    color: #aaa;
   }
   
   .commandbar-shortcut {
     background: #333;
-    color: #ccc;
     border-color: #555;
-  }
-  
-  .commandbar-content::-webkit-scrollbar-thumb {
-    background: #555;
-  }
-  
-  .commandbar-content::-webkit-scrollbar-thumb:hover {
-    background: #666;
+    color: #ccc;
   }
 }
 
@@ -423,12 +469,18 @@
 @media (prefers-reduced-motion: reduce) {
   .commandbar-overlay,
   .commandbar-modal,
+  .commandbar-content,
+  .commandbar-suggestions,
+  .commandbar-section,
+  .commandbar-section-title,
   .commandbar-item {
-    animation: none;
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
   
-  .commandbar-item {
-    transition: none;
+  .commandbar-item:hover {
+    transform: none !important;
   }
 }
 
@@ -522,5 +574,44 @@
   
   .edit-hint-text {
     color: #ffc107;
+  }
+} 
+
+.commandbar-section:empty {
+  margin-bottom: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  height: 0;
+  overflow: hidden;
+}
+
+.commandbar-section.fade-out {
+  opacity: 0;
+  transform: translateY(-10px);
+  height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.commandbar-section.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+  height: auto;
+  overflow: visible;
+}
+
+/* Mejorar la animación de entrada de elementos */
+.commandbar-item {
+  animation: commandbar-item-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes commandbar-item-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 } 
