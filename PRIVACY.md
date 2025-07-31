@@ -130,10 +130,11 @@ We may update this privacy policy from time to time. When we do:
 
 ### Local Caching
 CommandBar Pro implements intelligent caching for performance:
-- **History autocompletion:** Temporarily caches search results (30-second expiration)
-- **Cache size:** Limited to 100 entries maximum
+- **History autocompletion:** Temporarily caches search results (60-second expiration)
+- **Cache size:** Limited to 5000 entries maximum (auto-cleaned to 2500 when full)
 - **Cache location:** Memory only, cleared on extension restart
 - **Cache content:** URL suggestions only, no personal data
+- **Full history access:** Searches up to 1000 recent history entries for comprehensive autocompletion
 
 ### Security Measures
 - All data processing uses Chrome's secure APIs

@@ -130,8 +130,8 @@
                 <label class="option-label" for="search-delay" id="search-delay-label">Retraso de Búsqueda (ms)</label>
                 <p class="option-description" id="search-delay-desc">Tiempo de espera antes de ejecutar búsqueda</p>
               </div>
-              <input type="range" id="search-delay" class="option-range" min="0" max="1000" value="150" step="50">
-              <span class="range-value" id="search-delay-value">150ms</span>
+              <input type="range" id="search-delay" class="option-range" min="0" max="1000" value="50" step="50">
+              <span class="range-value" id="search-delay-value">50ms</span>
             </div>
 
             <div class="option-item">
@@ -210,6 +210,35 @@
 
             <div class="option-item">
               <div class="option-info">
+                <label class="option-label" id="stats-viewer-label">Estadísticas Recopiladas</label>
+                <p class="option-description" id="stats-viewer-desc">Visualiza las estadísticas de uso almacenadas localmente</p>
+              </div>
+              <div class="button-group">
+                <button class="option-button secondary" id="view-stats">
+                  <span class="button-icon">📊</span>
+                  <span id="view-stats-text">Ver Estadísticas</span>
+                </button>
+                <button class="option-button secondary" id="refresh-stats">
+                  <span class="button-icon">🔄</span>
+                  <span id="refresh-stats-text">Actualizar</span>
+                </button>
+              </div>
+              
+              <!-- Panel de estadísticas (inicialmente oculto) -->
+              <div id="stats-panel" style="display: none; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                <div id="stats-content">
+                  <div class="stats-loading" id="stats-loading" style="text-align: center; color: #6c757d;">
+                    <span>📊 Cargando estadísticas...</span>
+                  </div>
+                  <div id="stats-data" style="display: none;">
+                    <!-- El contenido se llenará dinámicamente -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
                 <label class="option-label" id="data-cleanup-label">Limpieza de Datos</label>
                 <p class="option-description" id="data-cleanup-desc">Gestionar datos almacenados</p>
               </div>
@@ -231,6 +260,53 @@
           </div>
         </section>
 
+
+        <!-- Funciones Experimentales -->
+        <!-- NOTA: Esta sección está hardcodeada en inglés para evitar problemas de traducción -->
+        <section class="option-section experimental-section">
+          <h2 class="section-title">
+            <span class="section-icon">🧪</span>
+            <span id="experimental-title">Experimental Functions</span>
+            <span class="beta-badge">BETA</span>
+          </h2>
+          <div class="experimental-warning" id="experimental-warning">
+            <span class="warning-icon">⚠️</span>
+            <span id="experimental-warning-text">Experimental functions are under development and may change in future versions. Use them at your own risk.</span>
+          </div>
+          
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="auto-open-new-tab-label">Auto-open in New Tab</label>
+                <p class="option-description" id="auto-open-new-tab-desc">Automatically open complete CommandBar when creating new empty tabs (Ctrl+T, + button). Includes all features: tab search, bookmarks, history, and intelligent autocompletion.</p>
+              
+              </div>
+              <div class="checkbox-group">
+                <label class="checkbox-item">
+                  <input type="checkbox" id="auto-open-new-tab">
+                  <span class="checkbox-label" id="auto-open-enabled-label">Enable auto-open</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" for="auto-open-delay" id="auto-open-delay-label">Auto-open Delay (ms)</label>
+                <p class="option-description" id="auto-open-delay-desc">Wait time before opening CommandBar (100ms recommended for fast transition)</p>
+              </div>
+              <input type="range" 
+                         id="auto-open-delay" 
+                         min="50" 
+                         max="2000" 
+                         step="50" 
+                         value="100" 
+                         class="option-range">
+              <span class="range-value" id="auto-open-delay-value">100ms</span>
+            </div>
+            
+          
+          </div>
+        </section>
 
 
 

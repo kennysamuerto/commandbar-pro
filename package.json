@@ -6,7 +6,7 @@
   "scripts": {
     "build": "echo 'Extensión lista para cargar en Chrome'",
     "dev": "echo 'Cargar en chrome://extensions/ en modo desarrollador'",
-    "package": "zip -r commandbar-pro-v1.0.0.zip . -x '*.git*' 'node_modules/*' 'package*.json' '.DS_Store'",
+    "package": "zip -r commandbar-pro-v1.2.0.zip . -x '*.git*' 'node_modules/*' 'package*.json' '.DS_Store'",
     "lint": "echo 'Verificar sintaxis de archivos JavaScript'",
     "test": "echo 'Ejecutar en Chrome para pruebas'"
   },

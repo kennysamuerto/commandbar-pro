@@ -9,7 +9,7 @@ class I18n {
         appDescription: 'Command Bar avanzada para Chrome inspirada en Arc Browser',
         
         // Placeholders y textos del input
-        searchPlaceholder: 'Escribe un comando, búsqueda o URL...',
+        searchPlaceholder: 'Escribe una búsqueda/URL o activa comandos con / ...',
         editUrlPlaceholder: 'Editar URL actual',
         
         // Comandos
@@ -65,6 +65,7 @@ class I18n {
           searchInGoogle: 'Buscar "{query}" en Google',
           searchInBing: 'Buscar "{query}" en Bing',
           searchInDuckDuckGo: 'Buscar "{query}" en DuckDuckGo',
+          searchInYahoo: 'Buscar "{query}" en Yahoo',
           searchInPerplexity: 'Buscar "{query}" en Perplexity',
           goToUrl: 'Ir a {url}',
           openInNewTab: 'Abrir en nueva pestaña',
@@ -141,9 +142,7 @@ class I18n {
           
           // Configuración
           settings: {
-            darkTheme: 'Tema Oscuro',
-            autoFocus: 'Auto-focus en Input',
-            quickActions: 'Acciones Rápidas'
+            darkTheme: 'Tema Oscuro'
           },
           
           // Tips
@@ -194,6 +193,7 @@ class I18n {
             searchSourcesDesc: 'Selecciona dónde buscar resultados',
             searchDelay: 'Retraso de Búsqueda (ms)',
             searchDelayDesc: 'Tiempo de espera antes de ejecutar búsqueda',
+            searchDelayRecommended: 'Recomendado',
             defaultSearchEngine: 'Buscador por Defecto',
             defaultSearchEngineDesc: 'Motor de búsqueda para consultas web',
             
@@ -230,10 +230,32 @@ class I18n {
             dataCleanupDesc: 'Gestionar datos almacenados',
             usageStats: 'Estadísticas de uso (local)',
             
+            statsViewer: 'Estadísticas Recopiladas',
+            statsViewerDesc: 'Visualiza las estadísticas de uso almacenadas localmente',
+            viewStats: 'Ver Estadísticas',
+            refreshStats: 'Actualizar',
+            noStats: 'No hay estadísticas disponibles',
+            statsEmpty: 'Activa la recopilación de datos para ver estadísticas',
+            
             actions: {
               clearCache: 'Limpiar Cache',
               clearStats: 'Limpiar Estadísticas',
               resetAll: 'Restablecer Todo'
+            },
+            
+            // Etiquetas de estadísticas
+            statsLabels: {
+              commandbar_opened: 'CommandBar abierto',
+              search_performed: 'Búsquedas realizadas',
+              action_executed: 'Acciones ejecutadas',
+              keyboard_command: 'Comandos de teclado',
+              url_edit_mode: 'Modo edición URL',
+              options_page_opened: 'Página de opciones abierta',
+              today: 'Hoy',
+              yesterday: 'Ayer',
+              total: 'Total',
+              last7days: 'Últimos 7 días',
+              last30days: 'Últimos 30 días'
             }
           },
           
@@ -304,6 +326,23 @@ class I18n {
           }
         },
         
+        // Funciones experimentales
+        experimental: {
+          title: 'Funciones Experimentales',
+          warning: 'Las funciones experimentales están en desarrollo y pueden cambiar en futuras versiones. Úsalas bajo tu propia responsabilidad.',
+          autoOpenNewTab: 'Auto-abrir en Nueva Pestaña',
+          autoOpenNewTabDesc: 'Abrir CommandBar completo automáticamente al crear nuevas pestañas vacías (Ctrl+T, botón +). Incluye todas las funciones: búsqueda en pestañas, marcadores, historial y autocompletado inteligente.',
+          autoOpenEnabled: 'Activar auto-apertura',
+          autoOpenDelay: 'Retraso de Auto-apertura (ms)',
+          autoOpenDelayDesc: 'Tiempo de espera antes de abrir CommandBar (100ms recomendado para transición rápida)',
+          quickTest: 'Prueba Rápida',
+          quickTestDesc: 'Verifica si la configuración experimental está funcionando correctamente',
+          testAutoOpen: 'Probar Auto-apertura',
+          checkConfig: 'Verificar Config',
+          forceSave: 'Forzar Guardado',
+          testLanguage: 'Test Idioma'
+        },
+        
         // Toasts y notificaciones
         notifications: {
           success: 'Éxito',
@@ -319,7 +358,7 @@ class I18n {
         appDescription: 'Advanced Command Bar for Chrome inspired by Arc Browser',
         
         // Placeholders and input texts
-        searchPlaceholder: 'Type a command, search or URL...',
+        searchPlaceholder: 'Type a search/URL, or activate commands with / ...',
         editUrlPlaceholder: 'Edit current URL',
         
         // Commands
@@ -375,6 +414,7 @@ class I18n {
           searchInGoogle: 'Search "{query}" in Google',
           searchInBing: 'Search "{query}" in Bing',
           searchInDuckDuckGo: 'Search "{query}" in DuckDuckGo',
+          searchInYahoo: 'Search "{query}" in Yahoo',
           searchInPerplexity: 'Search "{query}" in Perplexity',
           goToUrl: 'Go to {url}',
           openInNewTab: 'Open in new tab',
@@ -451,9 +491,7 @@ class I18n {
           
           // Settings
           settings: {
-            darkTheme: 'Dark Theme',
-            autoFocus: 'Auto-focus on Input',
-            quickActions: 'Quick Actions'
+            darkTheme: 'Dark Theme'
           },
           
           // Tips
@@ -504,6 +542,7 @@ class I18n {
             searchSourcesDesc: 'Select where to search for results',
             searchDelay: 'Search Delay (ms)',
             searchDelayDesc: 'Wait time before executing search',
+            searchDelayRecommended: 'Recommended',
             defaultSearchEngine: 'Default Search Engine',
             defaultSearchEngineDesc: 'Search engine for web queries',
             
@@ -540,10 +579,32 @@ class I18n {
             dataCleanupDesc: 'Manage stored data',
             usageStats: 'Usage statistics (local)',
             
+            statsViewer: 'Statistics Viewer',
+            statsViewerDesc: 'View locally stored usage statistics',
+            viewStats: 'View Statistics',
+            refreshStats: 'Refresh',
+            noStats: 'No statistics available',
+            statsEmpty: 'Enable data collection to view statistics',
+            
             actions: {
               clearCache: 'Clear Cache',
               clearStats: 'Clear Statistics',
               resetAll: 'Reset All'
+            },
+            
+            // Statistics labels
+            statsLabels: {
+              commandbar_opened: 'CommandBar opened',
+              search_performed: 'Searches performed',
+              action_executed: 'Actions executed',
+              keyboard_command: 'Keyboard commands',
+              url_edit_mode: 'URL edit mode',
+              options_page_opened: 'Options page opened',
+              today: 'Today',
+              yesterday: 'Yesterday',
+              total: 'Total',
+              last7days: 'Last 7 days',
+              last30days: 'Last 30 days'
             }
           },
           
@@ -612,6 +673,23 @@ class I18n {
               message: 'Are you sure you want to reset all settings? This action cannot be undone.'
             }
           }
+        },
+        
+        // Experimental functions
+        experimental: {
+          title: 'Experimental Functions',
+          warning: 'Experimental functions are under development and may change in future versions. Use them at your own risk.',
+          autoOpenNewTab: 'Auto-open in New Tab',
+          autoOpenNewTabDesc: 'Automatically open complete CommandBar when creating new empty tabs (Ctrl+T, + button). Includes all features: tab search, bookmarks, history, and intelligent autocompletion.',
+          autoOpenEnabled: 'Enable auto-open',
+          autoOpenDelay: 'Auto-open Delay (ms)',
+          autoOpenDelayDesc: 'Wait time before opening CommandBar (100ms recommended for fast transition)',
+          quickTest: 'Quick Test',
+          quickTestDesc: 'Verify if experimental configuration is working correctly',
+          testAutoOpen: 'Test Auto-open',
+          checkConfig: 'Check Config',
+          forceSave: 'Force Save',
+          testLanguage: 'Test Language'
         },
         
         // Toasts and notifications

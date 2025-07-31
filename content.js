@@ -3,6 +3,68 @@ let commandBarContainer = null;
 let isCommandBarVisible = false;
 let editMode = false; // Modo edición de URL actual
 
+// Función para tracking de uso local (envía al background script)
+async function trackUsageLocal(action, details = {}) {
+  try {
+    await chrome.runtime.sendMessage({
+      action: 'track_usage',
+      usage_action: action,
+      usage_details: details
+    });
+  } catch (error) {
+    // Ignorar errores de tracking para no interrumpir funcionalidad
+  }
+}
+
+// Configuración de usuario
+let userSettings = {
+  defaultSearchEngine: 'google',
+  searchTabs: true,
+  searchBookmarks: true,
+  searchHistory: true,
+  maxResults: 5,
+  searchDelay: 50
+};
+
+// Función para cargar configuración
+async function loadUserSettings() {
+  try {
+    const settings = await chrome.storage.sync.get(['defaultSearchEngine', 'searchTabs', 'searchBookmarks', 'searchHistory', 'maxResults', 'searchDelay']);
+    userSettings.defaultSearchEngine = settings.defaultSearchEngine || 'google';
+    userSettings.searchTabs = settings.searchTabs !== false; // Por defecto true
+    userSettings.searchBookmarks = settings.searchBookmarks !== false; // Por defecto true
+    userSettings.searchHistory = settings.searchHistory !== false; // Por defecto true
+    userSettings.maxResults = settings.maxResults || 5;
+    userSettings.searchDelay = settings.searchDelay || 50;
+  } catch (error) {
+    console.log('Error loading settings:', error);
+    userSettings.defaultSearchEngine = 'google';
+    userSettings.searchTabs = true;
+    userSettings.searchBookmarks = true;
+    userSettings.searchHistory = true;
+    userSettings.maxResults = 5;
+    userSettings.searchDelay = 50;
+  }
+}
+
+// Función para generar URL de búsqueda según el motor configurado
+function getSearchUrl(query, engine = null) {
+  const searchEngine = engine || userSettings.defaultSearchEngine;
+  const encodedQuery = encodeURIComponent(query);
+  
+  switch (searchEngine) {
+    case 'bing':
+      return `https://www.bing.com/search?q=${encodedQuery}`;
+    case 'duckduckgo':
+      return `https://duckduckgo.com/?q=${encodedQuery}`;
+    case 'yahoo':
+      return `https://search.yahoo.com/search?p=${encodedQuery}`;
+    case 'google':
+    default:
+      return `https://www.google.com/search?q=${encodedQuery}`;
+  }
+}
+
 // Detectar si es macOS
 function isMacOS() {
   return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -84,6 +146,11 @@ function setupEventListeners() {
   suggestions.addEventListener('click', handleSuggestionClick);
 }
 
+// Constantes de configuración del cache híbrido
+const AUTOCOMPLETE_CACHE_SIZE = 5000; // Tamaño máximo del cache
+const AUTOCOMPLETE_CACHE_TRIM_SIZE = 2500; // Tamaño al que se reduce cuando se limpia
+const AUTOCOMPLETE_DEBOUNCE_MS = 50; // Tiempo de debounce para autocompletado rápido
+
 // Manejar entrada de texto
 let searchTimeout;
 let autocompleteSuggestion = '';
@@ -93,7 +160,7 @@ let isDeleting = false;
 let lastInputLength = 0;
 let autocompleteTimeout = null; // Para debounce del autocompletado
 let lastAutocompleteQuery = ''; // Para evitar autocompletados repetidos
-let autocompleteCache = new Map(); // Cache para resultados frecuentes
+let autocompleteCache = new Map(); // Cache híbrido para resultados (hasta 5000 entradas)
 let isAutocompletePending = false; // Para evitar solapamientos
 let isDeletingTimeout = null; // Para extender el período de borrado
 let isInDeletionMode = false; // Flag súper agresivo para borrado
@@ -164,69 +231,29 @@ function handleInput(e) {
       showDefaultSuggestions();
       clearAutocomplete();
     }
-  }, 50); // Súper rápido como Arc
+  }, userSettings.searchDelay); // Usar configuración del usuario
 }
 
-// Autocompletado inteligente
-// Autocompletado INSTANTÁNEO estilo Arc
+// Función de autocompletado instantáneo usando el historial
 async function performAutocompleteInstant(query) {
-  if (query.length < 2 || isAutocompletePending || isDeleting || isInDeletionMode) {
-    return; // No autocompletar si está borrando o en modo borrado
+  if (!query || query.length < 2) {
+    clearAutocomplete();
+    return;
   }
   
-  // Verificar cache primero (súper rápido) - PERO NO SI ESTÁ BORRANDO
-  const cacheKey = query.toLowerCase();
-  if (autocompleteCache.has(cacheKey) && !isDeleting && !isInDeletionMode) {
-    const cached = autocompleteCache.get(cacheKey);
-    if (cached.suggestion) {
-      showArcStyleAutocomplete(query, cached.suggestion, cached.favicon, cached.title);
-      return;
-    }
-  }
-  
-  // Si no está en cache, buscar con debounce mínimo solo para queries nuevas
-  if (query !== lastAutocompleteQuery) {
-    if (autocompleteTimeout) {
-      clearTimeout(autocompleteTimeout);
-    }
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'search_history_autocomplete',
+      query: query
+    });
     
-    lastAutocompleteQuery = query;
-    isAutocompletePending = true;
-    
-    // Debounce súper agresivo: solo 50ms para no interferir
-    autocompleteTimeout = setTimeout(async () => {
-      try {
-        const response = await chrome.runtime.sendMessage({
-          action: 'search_history_autocomplete',
-          query: query
-        });
-        
-        isAutocompletePending = false;
-        
-        if (response.success && response.suggestion) {
-          // Guardar en cache
-          autocompleteCache.set(cacheKey, {
-            suggestion: response.suggestion,
-            favicon: response.favicon,
-            title: response.title
-          });
-          
-          // Solo mostrar si el usuario no ha seguido escribiendo
-          const currentInput = document.getElementById('commandbar-input');
-          if (currentInput && currentInput.value.toLowerCase().startsWith(cacheKey)) {
-            showArcStyleAutocomplete(query, response.suggestion, response.favicon, response.title);
-          }
-        } else {
-          // Guardar respuesta vacía en cache
-          autocompleteCache.set(cacheKey, { suggestion: null });
-          clearAutocomplete();
-        }
-      } catch (error) {
-        isAutocompletePending = false;
-        console.error('Error en autocompletado:', error);
-        clearAutocomplete();
-      }
-    }, 50); // Súper rápido: 50ms
+    if (response && response.success && response.suggestion) {
+      showArcStyleAutocomplete(query, response.suggestion, response.favicon, response.title);
+    } else {
+      clearAutocomplete();
+    }
+  } catch (error) {
+    clearAutocomplete();
   }
 }
 
@@ -404,11 +431,11 @@ function clearAutocomplete() {
 
 // Función para limpiar cache periódicamente (evitar memory leaks)
 function cleanAutocompleteCache() {
-  if (autocompleteCache.size > 100) {
-    // Mantener solo los 50 más recientes
+  if (autocompleteCache.size > AUTOCOMPLETE_CACHE_SIZE) {
+    // Mantener solo los más recientes para optimizar memoria
     const entries = Array.from(autocompleteCache.entries());
     autocompleteCache.clear();
-    entries.slice(-50).forEach(([key, value]) => {
+    entries.slice(-AUTOCOMPLETE_CACHE_TRIM_SIZE).forEach(([key, value]) => {
       autocompleteCache.set(key, value);
     });
   }
@@ -536,6 +563,12 @@ function navigateSuggestions(direction) {
 async function performSearch(query) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
+  // Trackear búsquedas (solo si está habilitado)
+  trackUsageLocal('search_performed', { 
+    type: isURL(query) ? 'url' : query.startsWith('/') ? 'command' : 'text',
+    length: query.length 
+  });
+  
   // Detectar tipo de búsqueda
   if (isURL(query)) {
     showURLSuggestions(query);
@@ -571,8 +604,10 @@ function showURLSuggestions(url) {
     </div>
   `;
   
-  // Buscar en pestañas existentes
-  searchInTabs(url);
+  // Buscar en pestañas existentes solo si está habilitado
+  if (userSettings.searchTabs) {
+    searchInTabs(url);
+  }
 }
 
 
@@ -635,40 +670,85 @@ function showCommandSuggestions(command) {
 
 // Mostrar sugerencias de búsqueda
 async function showSearchSuggestions(query) {
-  const suggestions = document.getElementById('commandbar-suggestions');
+  const input = document.getElementById('commandbar-input');
+  const suggestionsContainer = document.getElementById('commandbar-suggestions');
   
-  let html = `
-    <div class="commandbar-section">
-      <div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>
-      <div class="commandbar-item" data-action="google-search" data-query="${query}">
-        <span class="commandbar-icon">🔍</span>
-        <span class="commandbar-text">${i18n.t('search.searchInGoogle', { query })}</span>
-        <span class="commandbar-shortcut">Enter</span>
-      </div>
-      <div class="commandbar-item" data-action="perplexity-search" data-query="${query}">
-        <span class="commandbar-icon">🤖</span>
-        <span class="commandbar-text">${i18n.t('search.searchInPerplexity', { query })}</span>
-        <span class="commandbar-shortcut">Tab</span>
-      </div>
-      <div class="commandbar-item" data-action="bing-search" data-query="${query}">
-        <span class="commandbar-icon">🔍</span>
-        <span class="commandbar-text">${i18n.t('search.searchInBing', { query })}</span>
-      </div>
-      <div class="commandbar-item" data-action="duckduckgo-search" data-query="${query}">
-        <span class="commandbar-icon">🦆</span>
-        <span class="commandbar-text">${i18n.t('search.searchInDuckDuckGo', { query })}</span>
-      </div>
-    </div>
-  `;
+  if (!input || !suggestionsContainer) return;
   
-  suggestions.innerHTML = html;
+  // Limpiar sugerencias anteriores
+  suggestionsContainer.innerHTML = '';
   
-  // Buscar en pestañas, bookmarks e historial en paralelo
-  Promise.all([
-    searchInTabs(query),
-    searchInBookmarks(query),
-    searchInHistory(query)
-  ]);
+  let hasResults = false;
+  
+  try {
+    // Determinar qué fuentes buscar basado en configuración
+    const searchPromises = [];
+    
+    if (userSettings.searchTabs) {
+      searchPromises.push(searchInTabs(query));
+    }
+    
+    if (userSettings.searchBookmarks) {
+      searchPromises.push(searchInBookmarks(query));
+    }
+    
+    if (userSettings.searchHistory) {
+      searchPromises.push(searchInHistory(query));
+    }
+    
+    // Ejecutar búsquedas en paralelo
+    const results = await Promise.all(searchPromises);
+    
+    // Procesar resultados
+    results.forEach(result => {
+      if (result) {
+        hasResults = true;
+      }
+    });
+    
+    // Agregar sugerencias de búsqueda web si hay texto pero pocos resultados
+    if (query.trim() && (!hasResults || suggestionsContainer.children.length < 3)) {
+      const engines = [
+        { key: 'google', name: i18n.t('search.searchInGoogle', { query }) },
+        { key: 'bing', name: i18n.t('search.searchInBing', { query }) },
+        { key: 'duckduckgo', name: i18n.t('search.searchInDuckDuckGo', { query }) },
+        { key: 'yahoo', name: i18n.t('search.searchInYahoo', { query }) },
+        { key: 'perplexity', name: i18n.t('search.searchInPerplexity', { query }) }
+      ];
+      
+      // Crear sección de búsqueda web
+      const webSection = document.createElement('div');
+      webSection.className = 'commandbar-section';
+      webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
+      
+      engines.forEach(engine => {
+        const item = document.createElement('div');
+        item.className = 'commandbar-item';
+        item.dataset.action = `${engine.key}-search`;
+        item.dataset.query = query;
+        item.innerHTML = `
+          <span class="commandbar-icon">🔍</span>
+          <span class="commandbar-text">${engine.name}</span>
+        `;
+        webSection.appendChild(item);
+      });
+      
+      suggestionsContainer.appendChild(webSection);
+      hasResults = true;
+    }
+    
+  } catch (error) {
+    console.error('Error in search suggestions:', error);
+  }
+  
+  // Si no hay resultados, mostrar mensaje
+  if (!hasResults) {
+    suggestionsContainer.innerHTML = `
+      <div class="commandbar-no-results">
+        <span>${i18n.t('search.noResults')}</span>
+      </div>
+    `;
+  }
 }
 
 // Buscar en pestañas
@@ -681,9 +761,12 @@ async function searchInTabs(query) {
     
     if (response.success && response.tabs.length > 0) {
       appendTabResults(response.tabs);
+      return true; // Indicar que hubo resultados
     }
+    return false; // Indicar que no hubo resultados
   } catch (error) {
     console.error('Error buscando en pestañas:', error);
+    return false;
   }
 }
 
@@ -697,9 +780,12 @@ async function searchInBookmarks(query) {
     
     if (response.success && response.bookmarks.length > 0) {
       appendBookmarkResults(response.bookmarks);
+      return true; // Indicar que hubo resultados
     }
+    return false; // Indicar que no hubo resultados
   } catch (error) {
     console.error('Error buscando en bookmarks:', error);
+    return false;
   }
 }
 
@@ -713,9 +799,12 @@ async function searchInHistory(query) {
     
     if (response.success && response.history.length > 0) {
       appendHistoryResults(response.history);
+      return true; // Indicar que hubo resultados
     }
+    return false; // Indicar que no hubo resultados
   } catch (error) {
     console.error('Error buscando en historial:', error);
+    return false;
   }
 }
 
@@ -724,7 +813,7 @@ function appendTabResults(tabs) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.openTabs')}</div>`;
-  tabs.slice(0, 5).forEach(tab => {
+  tabs.slice(0, userSettings.maxResults).forEach(tab => {
     const favicon = tab.favIconUrl || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23666" d="M8 0C3.6 0 0 3.6 0 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8z"/></svg>';
     html += `
       <div class="commandbar-item" data-action="switch-tab" data-tab-id="${tab.id}">
@@ -744,7 +833,7 @@ function appendBookmarkResults(bookmarks) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.bookmarks')}</div>`;
-  bookmarks.slice(0, 5).forEach(bookmark => {
+  bookmarks.slice(0, userSettings.maxResults).forEach(bookmark => {
     if (bookmark.url) {
       html += `
         <div class="commandbar-item" data-action="open-bookmark" data-url="${bookmark.url}">
@@ -765,7 +854,7 @@ function appendHistoryResults(history) {
   const suggestions = document.getElementById('commandbar-suggestions');
   
   let html = `<div class="commandbar-section"><div class="commandbar-section-title">${i18n.t('sections.history')}</div>`;
-  history.slice(0, 5).forEach(item => {
+  history.slice(0, userSettings.maxResults).forEach(item => {
     html += `
       <div class="commandbar-item" data-action="open-history" data-url="${item.url}">
         <span class="commandbar-icon">📚</span>
@@ -830,191 +919,253 @@ function showDefaultSuggestions() {
   `;
 }
 
-// Manejar clicks en sugerencias
+// Manejar clics en sugerencias
 function handleSuggestionClick(e) {
-  const item = e.target.closest('.commandbar-item');
-  if (item) {
-    executeAction(item);
+  if (e.target.closest('.commandbar-item')) {
+    executeAction(e.target.closest('.commandbar-item'));
   }
 }
 
-// Ejecutar acción
 async function executeAction(item) {
+  if (!item) return;
+  
   const action = item.dataset.action;
   
-  try {
-    switch (action) {
-      case 'new-tab':
-        await chrome.runtime.sendMessage({
-          action: 'create_tab',
-          url: 'chrome://newtab/'
-        });
-        break;
-        
-      case 'new-window':
-        window.open('', '_blank');
-        break;
-        
-      case 'incognito':
-        await chrome.runtime.sendMessage({
-          action: 'create_tab',
-          url: 'chrome://newtab/',
-          incognito: true
-        });
-        break;
-        
-      case 'pin-tab':
-        await chrome.runtime.sendMessage({
-          action: 'pin_tab',
-          tabId: await getCurrentTabId()
-        });
-        break;
-        
-      case 'close-tab':
-        await chrome.runtime.sendMessage({
-          action: 'close_tab',
-          tabId: await getCurrentTabId()
-        });
-        break;
-        
-      case 'duplicate-tab':
-        await chrome.runtime.sendMessage({
-          action: 'duplicate_tab',
-          tabId: await getCurrentTabId()
-        });
-        break;
-        
-      case 'reload':
-        location.reload();
-        break;
-        
-      case 'open-url':
-      case 'open-bookmark':
-      case 'open-history':
+  trackUsageLocal('command_executed', { command: action });
+  
+  switch (action) {
+    case 'new-tab':
+      await chrome.runtime.sendMessage({ action: 'create_tab', url: 'chrome://newtab/' });
+      break;
+      
+    case 'pin-tab':
+      const currentTabId = await getCurrentTabId();
+      if (currentTabId) {
+        await chrome.runtime.sendMessage({ action: 'pin_tab', tabId: currentTabId });
+      }
+      break;
+      
+    case 'close-tab':
+      const currentTabId2 = await getCurrentTabId();
+      if (currentTabId2) {
+        await chrome.runtime.sendMessage({ action: 'close_tab', tabId: currentTabId2 });
+      }
+      break;
+      
+    case 'duplicate-tab':
+      const currentTabId3 = await getCurrentTabId();
+      if (currentTabId3) {
+        await chrome.runtime.sendMessage({ action: 'duplicate_tab', tabId: currentTabId3 });
+      }
+      break;
+      
+    case 'switch-tab':
+      const tabId = parseInt(item.dataset.tabId);
+      await chrome.runtime.sendMessage({ action: 'switch_tab', tabId });
+      break;
+      
+    case 'close-target-tab':
+      const targetTabId = parseInt(item.dataset.tabId);
+      await chrome.runtime.sendMessage({ action: 'close_tab', tabId: targetTabId });
+      break;
+      
+    case 'open-bookmark':
+    case 'open-history':
+      if (isOurExtensionPage()) {
+        // En nuestra página de extensión, navegar en la misma pestaña
+        window.location.href = item.dataset.url;
+      } else {
+        // En otras páginas, abrir en nueva pestaña (MARCADA COMO DESDE COMMANDBAR)
         await chrome.runtime.sendMessage({
           action: 'create_tab',
           url: item.dataset.url,
-          active: true
+          active: true,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'open-new-tab':
+      }
+      break;
+      
+    case 'open-bookmark-background':
+      await chrome.runtime.sendMessage({
+        action: 'create_tab',
+        url: item.dataset.url,
+        active: false,
+        fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
+      });
+      break;
+      
+    case 'open-new-tab':
+      await chrome.runtime.sendMessage({
+        action: 'create_tab',
+        url: item.dataset.url,
+        active: false,
+        fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
+      });
+      break;
+      
+    case 'google-search':
+      if (isOurExtensionPage()) {
+        window.location.href = `https://www.google.com/search?q=${encodeURIComponent(item.dataset.query)}`;
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: item.dataset.url,
-          active: false
+          url: `https://www.google.com/search?q=${encodeURIComponent(item.dataset.query)}`,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'switch-tab':
-        await chrome.runtime.sendMessage({
-          action: 'switch_tab',
-          tabId: parseInt(item.dataset.tabId)
-        });
-        break;
-        
-      case 'google-search':
+      }
+      break;
+      
+    case 'bing-search':
+      if (isOurExtensionPage()) {
+        window.location.href = `https://www.bing.com/search?q=${encodeURIComponent(item.dataset.query)}`;
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: `https://www.google.com/search?q=${encodeURIComponent(item.dataset.query)}`
+          url: `https://www.bing.com/search?q=${encodeURIComponent(item.dataset.query)}`,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'bing-search':
+      }
+      break;
+      
+    case 'duckduckgo-search':
+      if (isOurExtensionPage()) {
+        window.location.href = `https://duckduckgo.com/?q=${encodeURIComponent(item.dataset.query)}`;
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: `https://www.bing.com/search?q=${encodeURIComponent(item.dataset.query)}`
+          url: `https://duckduckgo.com/?q=${encodeURIComponent(item.dataset.query)}`,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'duckduckgo-search':
+      }
+      break;
+      
+    case 'yahoo-search':
+      if (isOurExtensionPage()) {
+        window.location.href = `https://search.yahoo.com/search?p=${encodeURIComponent(item.dataset.query)}`;
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: `https://duckduckgo.com/?q=${encodeURIComponent(item.dataset.query)}`
+          url: `https://search.yahoo.com/search?p=${encodeURIComponent(item.dataset.query)}`,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'perplexity-search':
+      }
+      break;
+      
+    case 'perplexity-search':
+      if (isOurExtensionPage()) {
+        window.location.href = `https://www.perplexity.ai/search?q=${encodeURIComponent(item.dataset.query)}`;
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: `https://www.perplexity.ai/search?q=${encodeURIComponent(item.dataset.query)}`
+          url: `https://www.perplexity.ai/search?q=${encodeURIComponent(item.dataset.query)}`,
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'show-bookmarks':
+      }
+      break;
+      
+    case 'show-bookmarks':
+      if (isOurExtensionPage()) {
+        window.location.href = 'chrome://bookmarks/';
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: 'chrome://bookmarks/'
+          url: 'chrome://bookmarks/',
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'show-history':
+      }
+      break;
+      
+    case 'show-history':
+      if (isOurExtensionPage()) {
+        window.location.href = 'chrome://history/';
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: 'chrome://history/'
+          url: 'chrome://history/',
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'show-downloads':
+      }
+      break;
+      
+    case 'show-downloads':
+      if (isOurExtensionPage()) {
+        window.location.href = 'chrome://downloads/';
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: 'chrome://downloads/'
+          url: 'chrome://downloads/',
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'show-settings':
+      }
+      break;
+      
+    case 'show-settings':
+      if (isOurExtensionPage()) {
+        window.location.href = 'chrome://settings/';
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: 'chrome://settings/'
+          url: 'chrome://settings/',
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'show-extensions':
+      }
+      break;
+      
+    case 'show-extensions':
+      if (isOurExtensionPage()) {
+        window.location.href = 'chrome://extensions/';
+      } else {
         await chrome.runtime.sendMessage({
           action: 'create_tab',
-          url: 'chrome://extensions/'
+          url: 'chrome://extensions/',
+          fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
         });
-        break;
-        
-      case 'reader-mode':
-        // Intentar activar modo lectura (experimental)
-        document.body.style.filter = document.body.style.filter ? '' : 'contrast(1.2) brightness(0.9)';
-        break;
-        
-      case 'edit-current-url':
-        // Triggerar el modo edición de URL
-        const currentUrl = window.location.href;
-        let cleanUrl = currentUrl;
-        try {
-          const url = new URL(cleanUrl);
-          cleanUrl = url.hostname.replace('www.', '') + (url.pathname !== '/' ? url.pathname : '') + url.search;
-        } catch (e) {
-          // Si no es una URL válida, usar como está
-        }
-        hideCommandBar();
-        showCommandBar(cleanUrl);
-        break;
+      }
+      break;
+      
+    case 'reader-mode':
+      // Intentar activar modo lectura (experimental)
+      document.body.style.filter = document.body.style.filter ? '' : 'contrast(1.2) brightness(0.9)';
+      break;
+      
+    case 'edit-current-url':
+      // Triggerar el modo edición de URL
+      const currentUrl = window.location.href;
+      let cleanUrl = currentUrl;
+      try {
+        const url = new URL(cleanUrl);
+        cleanUrl = url.hostname.replace('www.', '') + (url.pathname !== '/' ? url.pathname : '') + url.search;
+      } catch (e) {
+        // Si no es una URL válida, usar como está
+      }
+      hideCommandBar();
+      showCommandBar(cleanUrl);
+      break;
 
-    }
-  } catch (error) {
-    console.error('Error ejecutando acción:', error);
   }
   
   hideCommandBar();
+}
+
+// Detectar si estamos en nuestra página de extensión
+function isOurExtensionPage() {
+  return window.location.href.includes('new_tab.html');
 }
 
 // Navegar directamente a URL
 async function navigateToUrl(url) {
   const finalUrl = url.startsWith('http') ? url : `https://${url}`;
   
-  if (editMode) {
-    // En modo edición, navegar en la misma pestaña
+  if (editMode || isOurExtensionPage()) {
+    // En modo edición O en nuestra página de extensión, navegar en la misma pestaña
     window.location.href = finalUrl;
   } else {
-    // En modo normal, abrir en nueva pestaña
+    // En modo normal en otras páginas, abrir en nueva pestaña (MARCADA COMO DESDE COMMANDBAR)
     await chrome.runtime.sendMessage({
       action: 'create_tab',
-      url: finalUrl
+      url: finalUrl,
+      active: true,
+      fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
     });
   }
   hideCommandBar();
@@ -1022,14 +1173,15 @@ async function navigateToUrl(url) {
 
 // Buscar en Perplexity
 async function searchInPerplexity(query) {
-  if (editMode) {
-    // En modo edición, buscar en la misma pestaña
+  if (editMode || isOurExtensionPage()) {
+    // En modo edición O en nuestra página de extensión, buscar en la misma pestaña
     window.location.href = `https://www.perplexity.ai/search?q=${encodeURIComponent(query)}`;
   } else {
-    // En modo normal, abrir en nueva pestaña
+    // En modo normal en otras páginas, abrir en nueva pestaña (MARCADA COMO DESDE COMMANDBAR)
     await chrome.runtime.sendMessage({
       action: 'create_tab',
-      url: `https://www.perplexity.ai/search?q=${encodeURIComponent(query)}`
+      url: `https://www.perplexity.ai/search?q=${encodeURIComponent(query)}`,
+      fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
     });
   }
   hideCommandBar();
@@ -1040,14 +1192,17 @@ async function executeSearch(query) {
   if (isURL(query)) {
     await navigateToUrl(query);
   } else {
-    if (editMode) {
-      // En modo edición, buscar en la misma pestaña
-      window.location.href = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    const searchUrl = getSearchUrl(query);
+    
+    if (editMode || isOurExtensionPage()) {
+      // En modo edición O en nuestra página de extensión, buscar en la misma pestaña
+      window.location.href = searchUrl;
     } else {
-      // En modo normal, abrir en nueva pestaña
+      // En modo normal en otras páginas, abrir en nueva pestaña (MARCADA COMO DESDE COMMANDBAR)
       await chrome.runtime.sendMessage({
         action: 'create_tab',
-        url: `https://www.google.com/search?q=${encodeURIComponent(query)}`
+        url: searchUrl,
+        fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
       });
     }
     hideCommandBar();
@@ -1065,9 +1220,16 @@ async function getCurrentTabId() {
 
 // Mostrar Command Bar
 function showCommandBar(prefillUrl = null) {
+  
   if (!commandBarContainer) {
     createCommandBar();
   }
+  
+  // Trackear apertura de CommandBar
+  trackUsageLocal('commandbar_opened', { 
+    method: prefillUrl ? 'edit_mode' : 'normal',
+    prefilled: !!prefillUrl 
+  });
   
   commandBarContainer.style.display = 'block';
   isCommandBarVisible = true;
@@ -1075,24 +1237,29 @@ function showCommandBar(prefillUrl = null) {
   // Focus en el input
   setTimeout(() => {
     const input = document.getElementById('commandbar-input');
+    if (!input) {
+      console.error('❌ No se encontró commandbar-input');
+      return;
+    }
+    
     input.focus();
     
-          if (prefillUrl) {
-        // Modo edición: rellenar con URL actual
-        editMode = true;
-        input.value = prefillUrl;
-        input.select(); // Seleccionar todo el texto
-        input.placeholder = i18n.t('editUrlPlaceholder');
-        
-        // Mostrar hint de modo edición
-        showEditModeHint();
-      } else {
-        // Modo normal
-        editMode = false;
-        input.select();
-        input.placeholder = i18n.t('searchPlaceholder');
-        showDefaultSuggestions();
-      }
+    if (prefillUrl) {
+      // Modo edición: rellenar con URL actual
+      editMode = true;
+      input.value = prefillUrl;
+      input.select(); // Seleccionar todo el texto
+      input.placeholder = i18n.t('editUrlPlaceholder');
+      
+      // Mostrar hint de modo edición
+      showEditModeHint();
+    } else {
+      // Modo normal
+      editMode = false;
+      input.select();
+      input.placeholder = i18n.t('searchPlaceholder');
+      showDefaultSuggestions();
+    }
   }, 50);
 }
 
@@ -1161,6 +1328,7 @@ function clearEditModeHint() {
 
 // Escuchar mensajes del background script
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  
   if (message.action === 'toggle_commandbar') {
     toggleCommandBar();
   } else if (message.action === 'edit_current_url') {
@@ -1175,6 +1343,28 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
     showCommandBar(cleanUrl);
   } else if (message.action === 'settings_updated') {
+    // Actualizar configuración local
+    if (message.settings) {
+      if (message.settings.defaultSearchEngine !== undefined) {
+        userSettings.defaultSearchEngine = message.settings.defaultSearchEngine;
+      }
+      if (message.settings.searchTabs !== undefined) {
+        userSettings.searchTabs = message.settings.searchTabs;
+      }
+      if (message.settings.searchBookmarks !== undefined) {
+        userSettings.searchBookmarks = message.settings.searchBookmarks;
+      }
+      if (message.settings.searchHistory !== undefined) {
+        userSettings.searchHistory = message.settings.searchHistory;
+      }
+      if (message.settings.maxResults !== undefined) {
+        userSettings.maxResults = message.settings.maxResults;
+      }
+      if (message.settings.searchDelay !== undefined) {
+        userSettings.searchDelay = message.settings.searchDelay;
+      }
+    }
+    
     // Actualizar configuración del idioma
     if (message.settings && message.settings.language) {
       await i18n.setLanguage(message.settings.language);
@@ -1217,16 +1407,22 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-// Inicialización del content script
+// Función de inicialización principal
 async function initializeContentScript() {
   try {
-    // Cargar idioma guardado
-    const settings = await chrome.storage.sync.get(['language']);
-    if (settings.language) {
-      await i18n.setLanguage(settings.language);
+    // Verificar si ya está inicializado
+    if (isInitialized) {
+      return;
     }
+    
+    // Cargar configuración del usuario
+    await loadUserSettings();
+    
+    // Marcar como inicializado
+    isInitialized = true;
+    
   } catch (error) {
-    console.log('Error loading language in content script:', error);
+    console.error('Error initializing content script:', error);
   }
 }
 

@@ -2,36 +2,100 @@
 
 document.addEventListener('DOMContentLoaded', async function() {
   try {
-    // Esperar a que i18n se inicialice completamente
-    await i18n.loadLanguage();
-    
-    // Pequeño delay para asegurar que el DOM esté completamente listo
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
-    // Inicializar elementos de la UI
-    initializeOptions();
-    
-    // Cargar configuración guardada
+    // Paso 1: Cargar configuración guardada primero
     await loadSettings();
     
-    // Delay adicional antes de actualizar interfaz para asegurar estabilidad
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Paso 2: Inicializar i18n de forma más robusta
+    // Asegurar que i18n existe globalmente
+    if (typeof window.i18n === 'undefined' && typeof i18n !== 'undefined') {
+      window.i18n = i18n;
+    }
     
-    // Actualizar interfaz con traducciones (después de cargar configuración)
-    updateInterface();
+    // Intentar cargar idioma desde configuración
+    const currentLanguage = currentSettings.language || 'es';
     
-    // Configurar event listeners
+    // Esperar a que i18n se inicialice correctamente
+    let initAttempts = 0;
+    const maxInitAttempts = 20; // Más intentos para mayor robustez
+    
+    while (initAttempts < maxInitAttempts) {
+      try {
+        // Verificar que i18n esté disponible
+        if (typeof window.i18n === 'undefined' && typeof i18n === 'undefined') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          initAttempts++;
+          continue;
+        }
+        
+        // Usar la instancia global o local
+        const i18nInstance = window.i18n || i18n;
+        
+        // Cargar idioma específico
+        if (typeof i18nInstance.setLanguage === 'function') {
+          await i18nInstance.setLanguage(currentLanguage);
+        } else if (typeof i18nInstance.loadLanguage === 'function') {
+          await i18nInstance.loadLanguage();
+        }
+        
+        // Verificar que las traducciones funcionan
+        const testTranslation = i18nInstance.t('options.title');
+        if (testTranslation && testTranslation !== 'options.title') {
+          break; // ¡Éxito!
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 150));
+          initAttempts++;
+        }
+      } catch (error) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        initAttempts++;
+      }
+    }
+    
+    if (initAttempts >= maxInitAttempts) {
+      console.error('i18n failed to initialize after all attempts');
+      // Continuar sin traducciones como último recurso
+    }
+    
+    // Paso 3: Inicializar elementos de la UI
+    initializeOptions();
+    
+    // Paso 4: Actualizar interfaz con traducciones (con delay adicional)
+    setTimeout(() => {
+      updateInterface();
+      
+      // Verificación final y retry específico para sección experimental
+      setTimeout(() => {
+        const finalCheck = document.getElementById('page-title')?.textContent;
+        const experimentalCheck = document.getElementById('experimental-title')?.textContent;
+        
+        if (finalCheck && finalCheck.includes('options.')) {
+          updateInterface(); // Intento final
+        }
+        
+        // Retry específico para sección experimental
+        if (experimentalCheck && experimentalCheck.includes('options.')) {
+          setTimeout(() => {
+            const i18nInstance = window.i18n || i18n;
+            if (i18nInstance && typeof i18nInstance.t === 'function') {
+              // updateExperimentalSection(i18nInstance); // Eliminado
+            }
+          }, 1000);
+        }
+      }, 500);
+    }, 200);
+    
+    // Paso 5: Configurar event listeners
     setupEventListeners();
     
-    // Fallback: re-intentar traducción después de 2 segundos para elementos que pueden no haberse encontrado
-    setTimeout(() => {
-      console.log('Re-attempting translation for any missed elements...');
-      updateInterface();
-    }, 2000);
-    
-    console.log('Options page initialized successfully');
   } catch (error) {
-    console.error('Error during initialization:', error);
+    console.error('Error durante initialization:', error);
+    // Intentar cargar la página básica sin traducciones como fallback
+    try {
+      await loadSettings();
+      setupEventListeners();
+    } catch (fallbackError) {
+      console.error('Fallback initialization failed:', fallbackError);
+    }
   }
 });
 
@@ -43,11 +107,15 @@ const defaultSettings = {
   searchTabs: true,
   searchBookmarks: true,
   searchHistory: true,
-  searchDelay: 150,
+  searchDelay: 50,
   defaultSearchEngine: 'google',
   preventSiteShortcuts: true,
   storeUsageStats: false,
-  language: 'es'
+  language: 'es',
+  
+  // Funciones experimentales (desactivadas por defecto)
+  autoOpenNewTab: false,
+  autoOpenDelay: 100
 };
 
 let currentSettings = { ...defaultSettings };
@@ -64,8 +132,34 @@ function initializeOptions() {
   const searchDelayValue = document.getElementById('search-delay-value');
   
   searchDelayRange.addEventListener('input', function() {
-    searchDelayValue.textContent = `${this.value}ms`;
+    const value = parseInt(this.value);
+    const isRecommended = value === 50;
+    let recommendedText = '';
+    
+    // Obtener instancia de i18n de forma robusta
+    const i18nInstance = window.i18n || i18n;
+    if (isRecommended && i18nInstance && typeof i18nInstance.t === 'function') {
+      try {
+        recommendedText = ` (${i18nInstance.t('options.searchSettings.searchDelayRecommended')})`;
+      } catch (error) {
+        console.log('Error getting translation for recommended text in slider:', error);
+        recommendedText = ' (Recomendado)'; // Fallback
+      }
+    }
+    
+    searchDelayValue.textContent = `${value}ms${recommendedText}`;
   });
+  
+  // Configurar el range slider para auto-open delay
+  const autoOpenDelayRange = document.getElementById('auto-open-delay');
+  const autoOpenDelayValue = document.getElementById('auto-open-delay-value');
+  
+  if (autoOpenDelayRange && autoOpenDelayValue) {
+    autoOpenDelayRange.addEventListener('input', function() {
+      const value = parseInt(this.value);
+      autoOpenDelayValue.textContent = `${value}ms`;
+    });
+  }
   
   // Actualizar atajos de teclado según la plataforma
   updateKeyboardShortcuts();
@@ -104,11 +198,20 @@ function updateKeyboardShortcuts() {
 async function loadSettings() {
   try {
     const stored = await chrome.storage.sync.get(Object.keys(defaultSettings));
+    
     currentSettings = { ...defaultSettings, ...stored };
     
     // Sincronizar idioma con i18n
     if (currentSettings.language) {
       await i18n.setLanguage(currentSettings.language);
+    }
+    
+    // Si es la primera vez, guardar configuración por defecto
+    if (Object.keys(stored).length === 0 || stored.autoOpenNewTab === undefined) {
+      await chrome.storage.sync.set(currentSettings);
+      
+      // Verificar que se guardó
+      const verification = await chrome.storage.sync.get(Object.keys(defaultSettings));
     }
     
     // Aplicar configuración a los controles de la UI
@@ -119,8 +222,13 @@ async function loadSettings() {
   }
 }
 
+
+
 // Aplicar configuración a la UI
 function applySettingsToUI() {
+  // Obtener instancia de i18n de forma robusta
+  const i18nInstance = window.i18n || i18n;
+  
   // Selects
   document.getElementById('theme-select').value = currentSettings.theme;
   document.getElementById('animation-speed').value = currentSettings.animationSpeed;
@@ -130,7 +238,27 @@ function applySettingsToUI() {
   // Inputs
   document.getElementById('max-results').value = currentSettings.maxResults;
   document.getElementById('search-delay').value = currentSettings.searchDelay;
-  document.getElementById('search-delay-value').textContent = `${currentSettings.searchDelay}ms`;
+  
+  // Actualizar valor del search-delay con indicador "Recomendado"
+  const isRecommended = currentSettings.searchDelay === 50;
+  let recommendedText = '';
+  if (isRecommended && i18nInstance && typeof i18nInstance.t === 'function') {
+    try {
+      recommendedText = ` (${i18nInstance.t('options.searchSettings.searchDelayRecommended')})`;
+    } catch (error) {
+      console.log('Error getting translation for recommended text:', error);
+      recommendedText = ' (Recomendado)'; // Fallback
+    }
+  }
+  document.getElementById('search-delay-value').textContent = `${currentSettings.searchDelay}ms${recommendedText}`;
+  
+  // Configuraciones experimentales
+  const autoOpenDelayInput = document.getElementById('auto-open-delay');
+  const autoOpenDelayValue = document.getElementById('auto-open-delay-value');
+  if (autoOpenDelayInput && autoOpenDelayValue) {
+    autoOpenDelayInput.value = currentSettings.autoOpenDelay;
+    autoOpenDelayValue.textContent = `${currentSettings.autoOpenDelay}ms`;
+  }
   
   // Checkboxes
   const checkboxMappings = {
@@ -138,7 +266,8 @@ function applySettingsToUI() {
     'search-bookmarks': 'searchBookmarks',
     'search-history': 'searchHistory',
     'prevent-site-shortcuts': 'preventSiteShortcuts',
-    'store-usage-stats': 'storeUsageStats'
+    'store-usage-stats': 'storeUsageStats',
+    'auto-open-new-tab': 'autoOpenNewTab'
   };
   
   Object.entries(checkboxMappings).forEach(([elementId, settingKey]) => {
@@ -177,6 +306,16 @@ function setupEventListeners() {
   document.getElementById('export-settings').addEventListener('click', exportSettings);
   document.getElementById('import-settings').addEventListener('click', importSettings);
   
+  // Botones de estadísticas
+  document.getElementById('view-stats').addEventListener('click', toggleStatsPanel);
+  document.getElementById('refresh-stats').addEventListener('click', refreshStats);
+  
+  // Botones de prueba experimental
+  document.getElementById('test-auto-open')?.addEventListener('click', testAutoOpen);
+  document.getElementById('check-config')?.addEventListener('click', checkExperimentalConfig);
+  document.getElementById('force-save')?.addEventListener('click', forceSaveSettings);
+  document.getElementById('test-language-save')?.addEventListener('click', testLanguageSave);
+  
   // Enlaces del footer
   document.getElementById('view-changelog').addEventListener('click', viewChangelog);
   document.getElementById('report-bug').addEventListener('click', reportBug);
@@ -205,34 +344,52 @@ function setupRealTimeUpdates() {
       const settingKey = getSettingKeyFromElementId(id);
       if (settingKey) {
         currentSettings[settingKey] = this.value;
+        
+        // Aplicar cambios específicos inmediatamente
         if (id === 'theme-select') {
           applyThemeChange(this.value);
         } else if (id === 'language-select') {
           await handleLanguageChange(this.value);
+          return; // handleLanguageChange ya guarda la configuración
         }
+        
+        // Guardar automáticamente otros cambios (sin notificación)
+        await saveSettings(false);
       }
     });
   });
   
   // Number inputs
-  document.getElementById('max-results').addEventListener('input', function() {
+  document.getElementById('max-results').addEventListener('input', async function() {
     currentSettings.maxResults = parseInt(this.value);
+    await saveSettings(false);
   });
   
-  // Range input
-  document.getElementById('search-delay').addEventListener('input', function() {
+  // Range inputs
+  document.getElementById('search-delay').addEventListener('input', async function() {
     currentSettings.searchDelay = parseInt(this.value);
+    await saveSettings(false);
   });
+  
+  // Range input experimental
+  const autoOpenDelayInput = document.getElementById('auto-open-delay');
+  if (autoOpenDelayInput) {
+    autoOpenDelayInput.addEventListener('input', async function() {
+      currentSettings.autoOpenDelay = parseInt(this.value);
+      await saveSettings(false);
+    });
+  }
   
   // Checkboxes
   const checkboxes = document.querySelectorAll('input[type="checkbox"]');
   checkboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
+    checkbox.addEventListener('change', async function() {
       const settingKey = getSettingKeyFromElementId(this.id);
+      
       if (settingKey) {
         currentSettings[settingKey] = this.checked;
         
-
+        await saveSettings(false);
       }
     });
   });
@@ -251,7 +408,9 @@ function getSettingKeyFromElementId(elementId) {
     'default-search-engine': 'defaultSearchEngine',
     'prevent-site-shortcuts': 'preventSiteShortcuts',
     'store-usage-stats': 'storeUsageStats',
-    'language-select': 'language'
+    'language-select': 'language',
+    'auto-open-new-tab': 'autoOpenNewTab',
+    'auto-open-delay': 'autoOpenDelay'
   };
   
   return mappings[elementId];
@@ -275,28 +434,38 @@ function applyThemeChange(theme) {
     try {
       await i18n.setLanguage(newLanguage);
       
+      // Actualizar currentSettings y guardar automáticamente (sin notificación automática)
+      const oldLanguage = currentSettings.language;
+      currentSettings.language = newLanguage;
+      
+      await chrome.storage.sync.set(currentSettings);
+      
+      // Verificar que se guardó correctamente
+      const verification = await chrome.storage.sync.get(['language']);
+      
       // Actualizar atributo lang del HTML
       document.documentElement.lang = newLanguage;
       
       // Forzar actualización completa de la interfaz
       setTimeout(() => {
         updateInterface();
+        
+        // Sección experimental ahora está hardcodeada en inglés (no requiere actualización)
+        
       }, 100); // Pequeño delay para asegurar que el idioma esté completamente cargado
       
       // Notificar a todos los content scripts del cambio
       try {
         const tabs = await chrome.tabs.query({});
-        const settings = { language: newLanguage };
         
         for (const tab of tabs) {
           try {
             await chrome.tabs.sendMessage(tab.id, {
               action: 'settings_updated',
-              settings: settings
+              settings: currentSettings
             });
           } catch (error) {
             // Ignorar errores de tabs que no pueden recibir mensajes
-            console.log(`Could not send message to tab ${tab.id}:`, error);
           }
         }
       } catch (error) {
@@ -307,152 +476,191 @@ function applyThemeChange(theme) {
       showToast(i18n.t('options.messages.languageChanged', { language: languageName }), 'success');
     } catch (error) {
       console.error('Error changing language:', error);
+      showToast('❌ Error cambiando idioma', 'error');
     }
   }
 
-// Función helper para actualizar elemento con verificación
-function updateElementText(elementId, translationKey, replacements = {}) {
+// Función helper para actualizar elemento con verificación usando la instancia correcta
+function updateElementText(elementId, translationKey, replacements = {}, i18nInstance = window.i18n || i18n) {
   const element = document.getElementById(elementId);
-  if (element) {
-    element.textContent = i18n.t(translationKey, replacements);
-  } else {
-    console.warn(`Element with ID '${elementId}' not found`);
+  if (element && i18nInstance && typeof i18nInstance.t === 'function') {
+    element.textContent = i18nInstance.t(translationKey, replacements);
   }
+  // Note: Silently skip missing elements as they may be context-specific
 }
 
 // Actualizar interfaz con traducciones
 function updateInterface() {
-  // Verificar que i18n esté disponible
-  if (typeof i18n === 'undefined') {
-    console.error('i18n not available');
+  // Verificar que i18n esté disponible y funcionando
+  const i18nInstance = window.i18n || i18n;
+  if (typeof i18nInstance === 'undefined' || typeof i18nInstance.t !== 'function') {
+    console.error('❌ i18n not available in updateInterface');
     return;
   }
   
+  // Test rápido de traducciones
+  const testTranslation = i18nInstance.t('options.title');
+  if (!testTranslation || testTranslation === 'options.title') {
+    console.warn('⚠️ Traducciones no funcionan aún, retrasando updateInterface...');
+    setTimeout(() => updateInterface(), 200);
+    return;
+  }
+  
+  console.log('✅ Actualizando interfaz con traducciones funcionando');
+  
   // Actualizar atributo lang del HTML
-  document.documentElement.lang = i18n.getCurrentLanguage();
+  document.documentElement.lang = i18nInstance.getCurrentLanguage();
   
   // Título de página
-  updateElementText('page-title', 'options.title');
+  updateElementText('page-title', 'options.title', {}, i18nInstance);
   
   // Título y subtítulo
-  updateElementText('options-app-name', 'appName');
-  updateElementText('options-subtitle', 'options.subtitle');
+  updateElementText('options-app-name', 'appName', {}, i18nInstance);
+  updateElementText('options-subtitle', 'options.subtitle', {}, i18nInstance);
   
   // Support section
-  updateElementText('support-title', 'support.title');
-  updateElementText('support-message', 'support.message');
-  updateElementText('support-buy-coffee', 'support.buyMeACoffee');
+  updateElementText('support-title', 'support.title', {}, i18nInstance);
+  updateElementText('support-message', 'support.message', {}, i18nInstance);
+  updateElementText('support-buy-coffee', 'support.buyMeACoffee', {}, i18nInstance);
   
   // Configuración General
-  updateElementText('general-settings-title', 'options.generalSettings');
-  document.getElementById('interface-theme-label').textContent = i18n.t('options.general.interfaceTheme');
-  document.getElementById('interface-theme-desc').textContent = i18n.t('options.general.interfaceThemeDesc');
-  document.getElementById('animation-speed-label').textContent = i18n.t('options.general.animationSpeed');
-  document.getElementById('animation-speed-desc').textContent = i18n.t('options.general.animationSpeedDesc');
-  document.getElementById('max-results-label').textContent = i18n.t('options.general.maxResults');
-  document.getElementById('max-results-desc').textContent = i18n.t('options.general.maxResultsDesc');
+  updateElementText('general-settings-title', 'options.generalSettings', {}, i18nInstance);
+  document.getElementById('interface-theme-label').textContent = i18nInstance.t('options.general.interfaceTheme');
+  document.getElementById('interface-theme-desc').textContent = i18nInstance.t('options.general.interfaceThemeDesc');
+  document.getElementById('animation-speed-label').textContent = i18nInstance.t('options.general.animationSpeed');
+  document.getElementById('animation-speed-desc').textContent = i18nInstance.t('options.general.animationSpeedDesc');
+  document.getElementById('max-results-label').textContent = i18nInstance.t('options.general.maxResults');
+  document.getElementById('max-results-desc').textContent = i18nInstance.t('options.general.maxResultsDesc');
   
   // Opciones de tema
-  document.getElementById('theme-auto').textContent = i18n.t('options.general.themeOptions.auto');
-  document.getElementById('theme-light').textContent = i18n.t('options.general.themeOptions.light');
-  document.getElementById('theme-dark').textContent = i18n.t('options.general.themeOptions.dark');
+  document.getElementById('theme-auto').textContent = i18nInstance.t('options.general.themeOptions.auto');
+  document.getElementById('theme-light').textContent = i18nInstance.t('options.general.themeOptions.light');
+  document.getElementById('theme-dark').textContent = i18nInstance.t('options.general.themeOptions.dark');
   
   // Opciones de animación
-  document.getElementById('animation-slow').textContent = i18n.t('options.general.animationOptions.slow');
-  document.getElementById('animation-normal').textContent = i18n.t('options.general.animationOptions.normal');
-  document.getElementById('animation-fast').textContent = i18n.t('options.general.animationOptions.fast');
-  document.getElementById('animation-none').textContent = i18n.t('options.general.animationOptions.none');
+  document.getElementById('animation-slow').textContent = i18nInstance.t('options.general.animationOptions.slow');
+  document.getElementById('animation-normal').textContent = i18nInstance.t('options.general.animationOptions.normal');
+  document.getElementById('animation-fast').textContent = i18nInstance.t('options.general.animationOptions.fast');
+  document.getElementById('animation-none').textContent = i18nInstance.t('options.general.animationOptions.none');
   
   // Búsqueda y Resultados
-  document.getElementById('search-settings-title').textContent = i18n.t('options.searchAndResults');
-  document.getElementById('search-sources-label').textContent = i18n.t('options.searchSettings.searchSources');
-  document.getElementById('search-sources-desc').textContent = i18n.t('options.searchSettings.searchSourcesDesc');
-  document.getElementById('search-tabs-label').textContent = i18n.t('options.searchSettings.sources.openTabs');
-  document.getElementById('search-bookmarks-label').textContent = i18n.t('options.searchSettings.sources.bookmarks');
-  document.getElementById('search-history-label').textContent = i18n.t('options.searchSettings.sources.history');
-  document.getElementById('search-delay-label').textContent = i18n.t('options.searchSettings.searchDelay');
-  document.getElementById('search-delay-desc').textContent = i18n.t('options.searchSettings.searchDelayDesc');
-  document.getElementById('default-search-engine-label').textContent = i18n.t('options.searchSettings.defaultSearchEngine');
-  document.getElementById('default-search-engine-desc').textContent = i18n.t('options.searchSettings.defaultSearchEngineDesc');
+  updateElementText('search-settings-title', 'options.searchAndResults', {}, i18nInstance);
+  document.getElementById('search-sources-label').textContent = i18nInstance.t('options.searchSettings.searchSources');
+  document.getElementById('search-sources-desc').textContent = i18nInstance.t('options.searchSettings.searchSourcesDesc');
+  document.getElementById('search-tabs-label').textContent = i18nInstance.t('options.searchSettings.sources.openTabs');
+  document.getElementById('search-bookmarks-label').textContent = i18nInstance.t('options.searchSettings.sources.bookmarks');
+  document.getElementById('search-history-label').textContent = i18nInstance.t('options.searchSettings.sources.history');
+  document.getElementById('search-delay-label').textContent = i18nInstance.t('options.searchSettings.searchDelay');
+  document.getElementById('search-delay-desc').textContent = i18nInstance.t('options.searchSettings.searchDelayDesc');
+  document.getElementById('default-search-engine-label').textContent = i18nInstance.t('options.searchSettings.defaultSearchEngine');
+  document.getElementById('default-search-engine-desc').textContent = i18nInstance.t('options.searchSettings.defaultSearchEngineDesc');
   
   // Motores de búsqueda
-  document.getElementById('engine-google').textContent = i18n.t('options.searchSettings.engines.google');
-  document.getElementById('engine-bing').textContent = i18n.t('options.searchSettings.engines.bing');
-  document.getElementById('engine-duckduckgo').textContent = i18n.t('options.searchSettings.engines.duckduckgo');
-  document.getElementById('engine-yahoo').textContent = i18n.t('options.searchSettings.engines.yahoo');
+  document.getElementById('engine-google').textContent = i18nInstance.t('options.searchSettings.engines.google');
+  document.getElementById('engine-bing').textContent = i18nInstance.t('options.searchSettings.engines.bing');
+  document.getElementById('engine-duckduckgo').textContent = i18nInstance.t('options.searchSettings.engines.duckduckgo');
+  document.getElementById('engine-yahoo').textContent = i18nInstance.t('options.searchSettings.engines.yahoo');
   
   // Atajos de Teclado
-  updateElementText('keyboard-shortcuts-title', 'options.keyboardShortcuts');
-  updateElementText('main-shortcuts-label', 'options.keyboard.mainShortcuts');
-  updateElementText('main-shortcuts-desc', 'options.keyboard.mainShortcutsDesc');
-  updateElementText('open-commandbar-shortcut', 'options.keyboard.openCommandBar');
-  updateElementText('edit-url-shortcut', 'options.keyboard.editCurrentUrl');
-  updateElementText('additional-config-label', 'options.keyboard.additionalConfig');
-  updateElementText('additional-config-desc', 'options.keyboard.additionalConfigDesc');
-  updateElementText('prevent-site-shortcuts-label', 'options.keyboard.preventSiteShortcuts');
+  updateElementText('keyboard-shortcuts-title', 'options.keyboardShortcuts', {}, i18nInstance);
+  updateElementText('main-shortcuts-label', 'options.keyboard.mainShortcuts', {}, i18nInstance);
+  updateElementText('main-shortcuts-desc', 'options.keyboard.mainShortcutsDesc', {}, i18nInstance);
+  updateElementText('open-commandbar-shortcut', 'options.keyboard.openCommandBar', {}, i18nInstance);
+  updateElementText('edit-url-shortcut', 'options.keyboard.editCurrentUrl', {}, i18nInstance);
+  updateElementText('additional-config-label', 'options.keyboard.additionalConfig', {}, i18nInstance);
+  updateElementText('additional-config-desc', 'options.keyboard.additionalConfigDesc', {}, i18nInstance);
+  updateElementText('prevent-site-shortcuts-label', 'options.keyboard.preventSiteShortcuts', {}, i18nInstance);
   
   // Privacidad y Datos
-  updateElementText('privacy-title', 'options.privacyAndData');
-  updateElementText('data-collection-label', 'options.privacy.dataCollection');
-  updateElementText('data-collection-desc', 'options.privacy.dataCollectionDesc');
-  updateElementText('usage-stats-label', 'options.privacy.usageStats');
-  updateElementText('data-cleanup-label', 'options.privacy.dataCleanup');
-  updateElementText('data-cleanup-desc', 'options.privacy.dataCleanupDesc');
-  updateElementText('clear-cache-text', 'options.privacy.actions.clearCache');
-  updateElementText('clear-stats-text', 'options.privacy.actions.clearStats');
-  updateElementText('reset-all-text', 'options.privacy.actions.resetAll');
+  updateElementText('privacy-title', 'options.privacyAndData', {}, i18nInstance);
+  updateElementText('data-collection-label', 'options.privacy.dataCollection', {}, i18nInstance);
+  updateElementText('data-collection-desc', 'options.privacy.dataCollectionDesc', {}, i18nInstance);
+  updateElementText('usage-stats-label', 'options.privacy.usageStats', {}, i18nInstance);
+  updateElementText('stats-viewer-label', 'options.privacy.statsViewer', {}, i18nInstance);
+  updateElementText('stats-viewer-desc', 'options.privacy.statsViewerDesc', {}, i18nInstance);
+  updateElementText('view-stats-text', 'options.privacy.viewStats', {}, i18nInstance);
+  updateElementText('refresh-stats-text', 'options.privacy.refreshStats', {}, i18nInstance);
+  updateElementText('data-cleanup-label', 'options.privacy.dataCleanup', {}, i18nInstance);
+  updateElementText('data-cleanup-desc', 'options.privacy.dataCleanupDesc', {}, i18nInstance);
+  updateElementText('clear-cache-text', 'options.privacy.actions.clearCache', {}, i18nInstance);
+  updateElementText('clear-stats-text', 'options.privacy.actions.clearStats', {}, i18nInstance);
+  updateElementText('reset-all-text', 'options.privacy.actions.resetAll', {}, i18nInstance);
+  
+  // Sección experimental ahora tiene textos hardcodeados en inglés en el HTML
+  // (ya no necesita traducciones dinámicas para evitar problemas)
   
   // Idioma
-  updateElementText('language-title', 'options.language');
-  updateElementText('interface-language-label', 'options.languageSettings.interfaceLanguage');
-  updateElementText('interface-language-desc', 'options.languageSettings.interfaceLanguageDesc');
+  updateElementText('language-title', 'options.language', {}, i18nInstance);
+  updateElementText('interface-language-label', 'options.languageSettings.interfaceLanguage', {}, i18nInstance);
+  updateElementText('interface-language-desc', 'options.languageSettings.interfaceLanguageDesc', {}, i18nInstance);
   
   // Footer
-  document.getElementById('footer-version').textContent = i18n.t('options.footer.version');
-  document.querySelectorAll('.footer-link')[0].textContent = i18n.t('options.footer.changelog');
-  document.querySelectorAll('.footer-link')[1].textContent = i18n.t('options.footer.reportBug');
-  document.querySelectorAll('.footer-link')[2].textContent = i18n.t('options.footer.viewSource');
-  document.getElementById('export-settings-text').textContent = i18n.t('options.buttons.exportSettings');
-  document.getElementById('import-settings-text').textContent = i18n.t('options.buttons.importSettings');
-  document.getElementById('save-changes-text').textContent = i18n.t('options.buttons.saveChanges');
+  document.getElementById('footer-version').textContent = i18nInstance.t('options.footer.version');
+  document.querySelectorAll('.footer-link')[0].textContent = i18nInstance.t('options.footer.changelog');
+  document.querySelectorAll('.footer-link')[1].textContent = i18nInstance.t('options.footer.reportBug');
+  document.querySelectorAll('.footer-link')[2].textContent = i18nInstance.t('options.footer.viewSource');
+  document.getElementById('export-settings-text').textContent = i18nInstance.t('options.buttons.exportSettings');
+  document.getElementById('import-settings-text').textContent = i18nInstance.t('options.buttons.importSettings');
+  document.getElementById('save-changes-text').textContent = i18nInstance.t('options.buttons.saveChanges');
   
   // Modal y botones
-  document.getElementById('modal-cancel-text').textContent = i18n.t('options.buttons.cancel');
-  document.getElementById('modal-confirm-text').textContent = i18n.t('options.buttons.confirm');
+  document.getElementById('modal-cancel-text').textContent = i18nInstance.t('options.buttons.cancel');
+  document.getElementById('modal-confirm-text').textContent = i18nInstance.t('options.buttons.confirm');
   
   // Actualizar atajos de teclado según la plataforma
   updateKeyboardShortcuts();
+  
+  console.log('✅ Interfaz actualizada (sección experimental en inglés hardcodeado)');
 }
 
 // Guardar configuración
-async function saveSettings() {
+async function saveSettings(showNotification = true) {
   try {
     await chrome.storage.sync.set(currentSettings);
+    
+    // Verificar que se guardó correctamente
+    const verification = await chrome.storage.sync.get(['autoOpenNewTab', 'autoOpenDelay']);
     
     // Notificar a content scripts sobre cambios
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           action: 'settings_updated',
-          settings: currentSettings
+          settings: {
+            language: currentSettings.language,
+            defaultSearchEngine: currentSettings.defaultSearchEngine,
+            searchTabs: currentSettings.searchTabs,
+            searchBookmarks: currentSettings.searchBookmarks,
+            searchHistory: currentSettings.searchHistory,
+            maxResults: currentSettings.maxResults,
+            searchDelay: currentSettings.searchDelay,
+            autoOpenNewTab: currentSettings.autoOpenNewTab,
+            autoOpenDelay: currentSettings.autoOpenDelay
+          }
         }).catch(() => {
           // Ignorar errores de pestañas que no pueden recibir mensajes
         });
       });
     });
     
+    if (showNotification) {
     showToast(i18n.t('options.messages.settingsSaved'), 'success');
     
     // Efecto visual en el botón
     const saveButton = document.getElementById('save-options');
+      if (saveButton) {
     saveButton.style.transform = 'scale(0.95)';
     setTimeout(() => {
       saveButton.style.transform = 'scale(1)';
     }, 150);
+      }
+    }
     
   } catch (error) {
     console.error('Error guardando configuración:', error);
+    if (showNotification) {
     showToast(i18n.t('options.messages.errors.savingSettings'), 'error');
+    }
   }
 }
 
@@ -625,66 +833,192 @@ function handleKeyboard(e) {
 
 // Enlaces del footer
 function viewChangelog() {
-  const changelogWindow = window.open('', '_blank', 'width=800,height=600');
-  changelogWindow.document.write(`
-    <html>
-      <head><title>CommandBar Pro - Registro de Cambios</title></head>
-      <body style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px;">
-        <h1>📋 Registro de Cambios</h1>
-        
-        <h2>v1.0.0 - Lanzamiento Inicial</h2>
-        <ul>
-          <li>✨ Command Bar con atajo Cmd+K (Mac) o Ctrl+K</li>
-          <li>🔍 Búsqueda universal en pestañas, marcadores e historial</li>
-          <li>🌐 Navegación directa por URL</li>
-          <li>⚡ Comandos rápidos con prefijo "/"</li>
-          <li>🎨 Tema claro y oscuro</li>
-          <li>📱 Diseño responsive</li>
-          <li>⚙️ Página de opciones completa</li>
-          <li>🔒 Privacidad total (sin envío de datos externos)</li>
-        </ul>
-        
-        <h2>Próximas Características</h2>
-        <ul>
-          <li>🤖 Sugerencias con IA</li>
-          <li>🎤 Comandos de voz</li>
-          <li>📊 Agrupación inteligente de resultados</li>
-          <li>🔗 Integración con servicios web</li>
-          <li>🎯 Comandos personalizados</li>
-        </ul>
-      </body>
-    </html>
-  `);
+  window.open('https://github.com/kennysamuerto/commandbar-pro/blob/main/CHANGELOG.md', '_blank');
 }
 
 function reportBug() {
-  const subject = encodeURIComponent('CommandBar Pro - Reporte de Bug');
-  const body = encodeURIComponent(`
-Describe el problema:
-
-
-Pasos para reproducir:
-1. 
-2. 
-3. 
-
-Comportamiento esperado:
-
-
-Comportamiento actual:
-
-
-Información del sistema:
-- Chrome: ${navigator.userAgent}
-- Extensión: v1.0.0
-- OS: ${navigator.platform}
-  `);
-  
-  window.open(`mailto:soporte@commandbarpro.com?subject=${subject}&body=${body}`);
+  window.open('https://github.com/kennysamuerto/commandbar-pro/issues/new', '_blank');
 }
 
 function viewSource() {
-  window.open('https://github.com/usuario/commandbar-pro', '_blank');
+  window.open('https://github.com/kennysamuerto/commandbar-pro', '_blank');
+}
+
+// Función para alternar panel de estadísticas
+async function toggleStatsPanel() {
+  const panel = document.getElementById('stats-panel');
+  const button = document.getElementById('view-stats');
+  
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    button.querySelector('span:last-child').textContent = i18n.t('options.buttons.cancel');
+    await loadAndDisplayStats();
+  } else {
+    panel.style.display = 'none';
+    button.querySelector('span:last-child').textContent = i18n.t('options.privacy.viewStats');
+  }
+}
+
+// Función para refrescar estadísticas
+async function refreshStats() {
+  await loadAndDisplayStats();
+  showToast(i18n.t('options.privacy.refreshStats') + ' ✓', 'success');
+}
+
+// Función para cargar y mostrar estadísticas
+async function loadAndDisplayStats() {
+  const loading = document.getElementById('stats-loading');
+  const dataDiv = document.getElementById('stats-data');
+  
+  loading.style.display = 'block';
+  dataDiv.style.display = 'none';
+  
+  try {
+    // Verificar si el usuario tiene habilitadas las estadísticas
+    const { storeUsageStats } = await chrome.storage.sync.get(['storeUsageStats']);
+    
+    if (!storeUsageStats) {
+      dataDiv.innerHTML = `
+        <div style="text-align: center; color: #6c757d; padding: 20px;">
+          <span style="font-size: 24px;">📊</span>
+          <p>${i18n.t('options.privacy.statsEmpty')}</p>
+        </div>
+      `;
+      loading.style.display = 'none';
+      dataDiv.style.display = 'block';
+      return;
+    }
+    
+    // Cargar estadísticas del storage
+    const result = await chrome.storage.local.get(['usage_stats']);
+    const stats = result.usage_stats || {};
+    
+    if (Object.keys(stats).length === 0) {
+      dataDiv.innerHTML = `
+        <div style="text-align: center; color: #6c757d; padding: 20px;">
+          <span style="font-size: 24px;">📊</span>
+          <p>${i18n.t('options.privacy.noStats')}</p>
+        </div>
+      `;
+      loading.style.display = 'none';
+      dataDiv.style.display = 'block';
+      return;
+    }
+    
+    // Procesar estadísticas
+    const processedStats = processStatsData(stats);
+    
+    // Generar HTML
+    dataDiv.innerHTML = generateStatsHTML(processedStats);
+    
+    loading.style.display = 'none';
+    dataDiv.style.display = 'block';
+    
+  } catch (error) {
+    console.error('Error loading stats:', error);
+    dataDiv.innerHTML = `
+      <div style="text-align: center; color: #dc3545; padding: 20px;">
+        <span style="font-size: 24px;">❌</span>
+        <p>Error cargando estadísticas</p>
+      </div>
+    `;
+    loading.style.display = 'none';
+    dataDiv.style.display = 'block';
+  }
+}
+
+// Función para procesar datos de estadísticas
+function processStatsData(stats) {
+  const now = new Date();
+  const today = now.toDateString();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toDateString();
+  
+  // Inicializar contadores
+  const processed = {
+    today: {},
+    yesterday: {},
+    last7days: {},
+    last30days: {},
+    total: {}
+  };
+  
+  // Procesar cada día
+  Object.entries(stats).forEach(([date, dayStats]) => {
+    const dayDate = new Date(date);
+    const daysDiff = Math.floor((now - dayDate) / (24 * 60 * 60 * 1000));
+    
+    Object.entries(dayStats).forEach(([action, count]) => {
+      // Solo procesar métricas principales (no details)
+      if (!action.endsWith('_details')) {
+        // Total
+        processed.total[action] = (processed.total[action] || 0) + count;
+        
+        // Hoy
+        if (date === today) {
+          processed.today[action] = count;
+        }
+        
+        // Ayer
+        if (date === yesterday) {
+          processed.yesterday[action] = count;
+        }
+        
+        // Últimos 7 días
+        if (daysDiff <= 7) {
+          processed.last7days[action] = (processed.last7days[action] || 0) + count;
+        }
+        
+        // Últimos 30 días
+        if (daysDiff <= 30) {
+          processed.last30days[action] = (processed.last30days[action] || 0) + count;
+        }
+      }
+    });
+  });
+  
+  return processed;
+}
+
+// Función para generar HTML de estadísticas
+function generateStatsHTML(stats) {
+  const periods = [
+    { key: 'today', label: i18n.t('options.privacy.statsLabels.today') },
+    { key: 'yesterday', label: i18n.t('options.privacy.statsLabels.yesterday') },
+    { key: 'last7days', label: i18n.t('options.privacy.statsLabels.last7days') },
+    { key: 'last30days', label: i18n.t('options.privacy.statsLabels.last30days') },
+    { key: 'total', label: i18n.t('options.privacy.statsLabels.total') }
+  ];
+  
+  let html = '<div style="display: grid; gap: 15px;">';
+  
+  periods.forEach(period => {
+    const periodStats = stats[period.key];
+    if (Object.keys(periodStats).length > 0) {
+      html += `
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6;">
+          <h4 style="margin: 0 0 10px 0; color: #495057; font-size: 14px; font-weight: 600;">
+            ${period.label}
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
+      `;
+      
+      Object.entries(periodStats).forEach(([action, count]) => {
+        const label = i18n.t(`options.privacy.statsLabels.${action}`) || action;
+        html += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; background: #f8f9fa; border-radius: 4px;">
+            <span style="font-size: 13px; color: #6c757d;">${label}</span>
+            <span style="font-size: 13px; font-weight: 600; color: #007bff;">${count}</span>
+          </div>
+        `;
+      });
+      
+      html += '</div></div>';
+    }
+  });
+  
+  html += '</div>';
+  
+  return html;
 }
 
 // Agregar estilos de animación dinámicamente
@@ -721,7 +1055,7 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Trackear uso de la página de opciones
+// Trackear uso de la página de opciones (ejecutar al cargar)
 chrome.storage.local.get(['usage_stats'], (result) => {
   const stats = result.usage_stats || {};
   const today = new Date().toDateString();

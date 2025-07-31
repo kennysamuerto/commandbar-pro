@@ -1,4 +1,5 @@
 // JavaScript para el Popup de CommandBar Pro
+// JavaScript para el Popup de CommandBar Pro
 
 document.addEventListener('DOMContentLoaded', async function() {
   try {
@@ -14,11 +15,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Fallback: re-intentar traducción después de 1 segundo para elementos que pueden no haberse encontrado
     setTimeout(() => {
-      console.log('Re-attempting translation for any missed elements in popup...');
       updateInterface();
     }, 1000);
     
-    console.log('Popup initialized successfully');
   } catch (error) {
     console.error('Error during popup initialization:', error);
   }
@@ -53,47 +52,52 @@ function updateKeyboardShortcuts() {
   if (shortcutDisplays.length >= 1) {
     shortcutDisplays[0].innerHTML = `
       <kbd class="key">${modifierKey}</kbd> + <kbd class="key">K</kbd>
-      <span class="shortcut-desc">Abrir Command Bar</span>
+      <span class="shortcut-desc" id="popup-open-commandbar">Abrir Command Bar</span>
     `;
   }
   
   if (shortcutDisplays.length >= 2) {
     shortcutDisplays[1].innerHTML = `
       <kbd class="key">${modifierKey}</kbd> + <kbd class="key">Shift</kbd> + <kbd class="key">K</kbd>
-      <span class="shortcut-desc">Editar URL actual</span>
+      <span class="shortcut-desc" id="popup-edit-current-url">Editar URL actual</span>
     `;
   }
 }
 
-// Cargar configuración guardada
+// Función para obtener configuración del usuario
 async function loadSettings() {
   try {
-    const settings = await chrome.storage.sync.get([
+    const stored = await chrome.storage.sync.get([
+      'language', 
       'darkMode',
-      'autoFocus',
-      'quickActions',
-      'language'
+      'storeUsageStats'
     ]);
     
-    // Cargar idioma
-    if (settings.language) {
-      await i18n.setLanguage(settings.language);
-    }
-    
-    // Actualizar interfaz con traducciones
-    updateInterface();
-    
-    // Aplicar configuración a los checkboxes
-    document.getElementById('dark-mode').checked = settings.darkMode || false;
-    document.getElementById('auto-focus').checked = settings.autoFocus !== false;
-    document.getElementById('quick-actions').checked = settings.quickActions !== false;
-    
-    // Aplicar tema oscuro si está habilitado
-    if (settings.darkMode) {
+    // Usar configuración guardada o valores por defecto
+    userSettings = {
+      language: stored.language || 'es',
+      darkMode: stored.darkMode || false,
+      storeUsageStats: stored.storeUsageStats || false
+    };
+
+    // Aplicar configuración de tema
+    if (userSettings.darkMode) {
       document.body.classList.add('dark-theme');
     }
+
+    // Verificar idioma y cargar i18n si es necesario
+    if (window.i18n) {
+      await window.i18n.setLanguage(userSettings.language);
+    }
+
   } catch (error) {
-    console.error('Error cargando configuración:', error);
+    console.error('Error loading settings:', error);
+    // Usar valores por defecto si hay error
+    userSettings = {
+      language: 'es',
+      darkMode: false,
+      storeUsageStats: false
+    };
   }
 }
 
@@ -141,7 +145,6 @@ async function testCommandBar() {
         window.close();
       } catch (error) {
         // Si falla, intentar inyección forzada
-        console.log('Intentando inyección forzada desde popup...');
         
         try {
           await chrome.scripting.executeScript({
@@ -249,41 +252,42 @@ async function changeLanguage() {
 
 // Manejar cambios en configuración
 async function handleSettingChange(event) {
-  const setting = event.target.id;
-  const value = event.target.checked;
+  const settingName = event.target.id.replace('-', '');
+  const isChecked = event.target.checked;
+  
+  // Mapeo de nombres de configuración
+  const settingMap = {
+    'darkmode': 'darkMode',
+    'storeusagestats': 'storeUsageStats'
+  };
+  
+  const actualSettingName = settingMap[settingName] || settingName;
   
   try {
-    // Guardar en storage
-    await chrome.storage.sync.set({ [setting.replace('-', '')]: value });
+    // Guardar la configuración
+    await chrome.storage.sync.set({ [actualSettingName]: isChecked });
     
-    // Aplicar cambios inmediatos
-    switch (setting) {
-      case 'dark-mode':
-        document.body.classList.toggle('dark-theme', value);
-        showNotification(value ? 'Tema oscuro activado' : 'Tema claro activado', 'success');
-        break;
-        
-      case 'auto-focus':
-        showNotification(value ? 'Auto-focus activado' : 'Auto-focus desactivado', 'success');
-        break;
-        
-
-        
-      case 'quick-actions':
-        showNotification(value ? 'Acciones rápidas activadas' : 'Acciones rápidas desactivadas', 'success');
-        break;
+    // Aplicar cambios inmediatamente
+    if (actualSettingName === 'darkMode') {
+      if (isChecked) {
+        document.body.classList.add('dark-theme');
+      } else {
+        document.body.classList.remove('dark-theme');
+      }
     }
     
-    // Animación del checkbox
-    const settingItem = event.target.closest('.setting-item');
-    settingItem.style.transform = 'scale(1.05)';
-    setTimeout(() => {
-      settingItem.style.transform = 'scale(1)';
-    }, 150);
+    // Mostrar confirmación
+    showNotification(`Setting ${actualSettingName} updated`, 'success');
+    
+    // Trackear el cambio
+    trackUsage('setting_changed');
     
   } catch (error) {
-    console.error('Error guardando configuración:', error);
-    showNotification('Error guardando configuración', 'error');
+    console.error('Error saving setting:', error);
+    showNotification('Error saving setting', 'error');
+    
+    // Revertir el checkbox si hay error
+    event.target.checked = !isChecked;
   }
 }
 
@@ -415,85 +419,63 @@ function updateElementText(elementId, translationKey, replacements = {}) {
 // Actualizar interfaz con traducciones
 function updateInterface() {
   // Verificar que i18n esté disponible
-  if (typeof i18n === 'undefined') {
-    console.error('i18n not available in popup');
+  if (!window.i18n || typeof window.i18n.t !== 'function') {
     return;
   }
-  
-  // Actualizar atributo lang del HTML
-  document.documentElement.lang = i18n.getCurrentLanguage();
-  
-  // Título de página
-  updateElementText('popup-page-title', 'appName');
-  
-  // Título y versión
-  updateElementText('popup-app-name', 'appName');
-  updateElementText('popup-version', 'popup.version');
-  
-  // Support section
-  updateElementText('support-title', 'support.title');
-  updateElementText('support-message', 'support.message');
-  updateElementText('support-buy-coffee', 'support.buyMeACoffee');
-  
-  // Atajos de teclado
-  updateElementText('popup-keyboard-shortcuts', 'popup.keyboardShortcuts');
-  updateElementText('popup-open-commandbar', 'popup.openCommandBar');
-  updateElementText('popup-edit-current-url', 'popup.editCurrentUrl');
-  
-  // Funcionalidades
-  updateElementText('popup-features', 'popup.features');
-  updateElementText('popup-universal-search', 'popup.featureItems.universalSearch');
-  updateElementText('popup-quick-navigation', 'popup.featureItems.quickNavigation');
-  updateElementText('popup-tab-management', 'popup.featureItems.tabManagement');
-  updateElementText('popup-bookmark-access', 'popup.featureItems.bookmarkAccess');
-  updateElementText('popup-history-search', 'popup.featureItems.historySearch');
-  updateElementText('popup-quick-commands', 'popup.featureItems.quickCommands');
-  
-  // Comandos disponibles
-  updateElementText('popup-available-commands', 'popup.availableCommands');
-  updateElementText('popup-cmd-new-tab', 'commands.newTab');
-  updateElementText('popup-cmd-new-tab-desc', 'commandDescs.newTab');
-  updateElementText('popup-cmd-pin', 'commands.pinTab');
-  updateElementText('popup-cmd-pin-desc', 'commandDescs.pinTab');
-  updateElementText('popup-cmd-close', 'commands.closeTab');
-  updateElementText('popup-cmd-close-desc', 'commandDescs.closeTab');
-  updateElementText('popup-cmd-duplicate', 'commands.duplicateTab');
-  updateElementText('popup-cmd-duplicate-desc', 'commandDescs.duplicateTab');
-  updateElementText('popup-cmd-bookmarks', 'commands.bookmarks');
-  updateElementText('popup-cmd-bookmarks-desc', 'commandDescs.bookmarks');
-  updateElementText('popup-cmd-history', 'commands.history');
-  updateElementText('popup-cmd-history-desc', 'commandDescs.history');
-  
-  // Tipos de búsqueda
-  updateElementText('popup-search-types', 'popup.searchTypes');
-  updateElementText('popup-web-search-title', 'popup.searchTypeItems.webSearch.title');
-  updateElementText('popup-web-search-desc', 'popup.searchTypeItems.webSearch.desc');
-  updateElementText('popup-direct-nav-title', 'popup.searchTypeItems.directNavigation.title');
-  updateElementText('popup-direct-nav-desc', 'popup.searchTypeItems.directNavigation.desc');
-  updateElementText('popup-open-tabs-title', 'popup.searchTypeItems.openTabs.title');
-  updateElementText('popup-open-tabs-desc', 'popup.searchTypeItems.openTabs.desc');
-  updateElementText('popup-bookmarks-title', 'popup.searchTypeItems.bookmarks.title');
-  updateElementText('popup-bookmarks-desc', 'popup.searchTypeItems.bookmarks.desc');
-  updateElementText('popup-history-title', 'popup.searchTypeItems.history.title');
-  updateElementText('popup-history-desc', 'popup.searchTypeItems.history.desc');
-  
-  // Configuración
-  updateElementText('popup-configuration', 'popup.configuration');
-  updateElementText('popup-dark-theme', 'popup.settings.darkTheme');
-  updateElementText('popup-auto-focus', 'popup.settings.autoFocus');
-  updateElementText('popup-quick-actions', 'popup.settings.quickActions');
-  
-  // Botones del footer
-  updateElementText('popup-try-commandbar', 'popup.tryCommandBar');
-  updateElementText('popup-advanced-settings', 'popup.advancedSettings');
-  updateElementText('popup-change-language', 'popup.changeLanguage');
-  
-  // Tips
-  updateElementText('popup-tip-slash', 'popup.tips.useSlash');
-  updateElementText('popup-tip-url', 'popup.tips.directUrl');
-  
-  // Actualizar atajos de teclado según la plataforma
-  updateKeyboardShortcuts();
+
+  try {
+    updateElementText('popup-title', 'appName');
+    updateElementText('popup-version', 'popup.version');
+    
+    // Support section
+    updateElementText('support-title', 'support.title');
+    updateElementText('support-message', 'support.message');
+    updateElementText('support-coffee-btn', 'support.buyMeACoffee');
+    
+    // Features section
+    updateElementText('features-title', 'popup.features');
+    
+    // Feature items
+    updateElementText('feature-universal-search', 'popup.featureItems.universalSearch');
+    updateElementText('feature-quick-navigation', 'popup.featureItems.quickNavigation');
+    updateElementText('feature-tab-management', 'popup.featureItems.tabManagement');
+    updateElementText('feature-bookmark-access', 'popup.featureItems.bookmarkAccess');
+    updateElementText('feature-history-search', 'popup.featureItems.historySearch');
+    updateElementText('feature-quick-commands', 'popup.featureItems.quickCommands');
+    
+    // Commands section
+    updateElementText('commands-title', 'popup.availableCommands');
+    
+    // Search types section
+    updateElementText('search-types-title', 'popup.searchTypes');
+    updateElementText('search-web-title', 'popup.searchTypeItems.webSearch.title');
+    updateElementText('search-web-desc', 'popup.searchTypeItems.webSearch.desc');
+    updateElementText('search-navigation-title', 'popup.searchTypeItems.directNavigation.title');
+    updateElementText('search-navigation-desc', 'popup.searchTypeItems.directNavigation.desc');
+    updateElementText('search-tabs-title', 'popup.searchTypeItems.openTabs.title');
+    updateElementText('search-tabs-desc', 'popup.searchTypeItems.openTabs.desc');
+    updateElementText('search-bookmarks-title', 'popup.searchTypeItems.bookmarks.title');
+    updateElementText('search-bookmarks-desc', 'popup.searchTypeItems.bookmarks.desc');
+    updateElementText('search-history-title', 'popup.searchTypeItems.history.title');
+    updateElementText('search-history-desc', 'popup.searchTypeItems.history.desc');
+    
+    // Configuration section
+    updateElementText('configuration-title', 'popup.configuration');
+    updateElementText('dark-mode-label', 'popup.settings.darkTheme');
+    
+    // Footer buttons
+    updateElementText('test-commandbar-text', 'popup.tryCommandBar');
+    updateElementText('advanced-settings-text', 'popup.advancedSettings');
+    updateElementText('change-language-text', 'popup.changeLanguage');
+    
+    // Tips section
+    updateElementText('tips-title', 'popup.tips');
+    updateElementText('tip-slash', 'popup.tips.useSlash');
+    updateElementText('tip-url', 'popup.tips.directUrl');
+    
+  } catch (error) {
+    console.error('Error updating interface:', error);
+  }
 }
 
 // Agregar estilos de animación dinámicamente
@@ -553,6 +535,25 @@ style.textContent = `
   .dark-theme .search-type:hover,
   .dark-theme .setting-item:hover {
     background: #3d3d3d;
+    border-color: #555;
+  }
+  
+  .dark-theme .feature-text,
+  .dark-theme .command-name,
+  .dark-theme .command-desc,
+  .dark-theme .search-title,
+  .dark-theme .search-desc {
+    color: #e0e0e0;
+  }
+  
+  .dark-theme .feature-icon,
+  .dark-theme .search-icon {
+    filter: brightness(1.2);
+  }
+  
+  .dark-theme .command-prefix {
+    background: #667eea;
+    color: white;
   }
   
   .dark-theme .popup-footer {
@@ -567,12 +568,12 @@ style.textContent = `
   }
   
   .dark-theme .popup-tips {
-    background: linear-gradient(135deg, #2d2d2d 0%, #404040 100%);
-    border-top-color: #404040;
+    background: rgba(45, 45, 45, 0.5);
+    border-top-color: rgba(64, 64, 64, 0.5);
   }
   
   .dark-theme .tip-text {
-    color: #ccc;
+    color: #bbb;
   }
 `;
 document.head.appendChild(style);
@@ -590,20 +591,13 @@ document.addEventListener('keydown', function(event) {
 // Analytics y métricas (opcional)
 function trackUsage(action) {
   try {
-    chrome.storage.local.get(['usage_stats'], (result) => {
-      const stats = result.usage_stats || {};
-      const today = new Date().toDateString();
-      
-      if (!stats[today]) {
-        stats[today] = {};
-      }
-      
-      stats[today][action] = (stats[today][action] || 0) + 1;
-      
-      chrome.storage.local.set({ usage_stats: stats });
+    chrome.runtime.sendMessage({
+      action: 'track_usage',
+      usage_action: action,
+      usage_details: { source: 'popup' }
     });
   } catch (error) {
-    console.log('Error tracking usage:', error);
+    // Error silencioso para tracking
   }
 }
 
