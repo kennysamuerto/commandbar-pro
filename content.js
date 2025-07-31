@@ -2,6 +2,7 @@
 let commandBarContainer = null;
 let isCommandBarVisible = false;
 let editMode = false; // Modo edición de URL actual
+let isInitialized = false; // Flag para evitar inicialización duplicada
 
 // Función para tracking de uso local (envía al background script)
 async function trackUsageLocal(action, details = {}) {
