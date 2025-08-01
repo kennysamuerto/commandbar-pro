@@ -100,7 +100,7 @@ class I18n {
 
         // Popup
         popup: {
-          version: 'v1.2.0',
+          version: 'v1.3.0',
           keyboardShortcuts: 'Atajos de Teclado',
           openCommandBar: 'Abrir Command Bar',
           developerMode: 'Modo desarrollador',
@@ -317,7 +317,7 @@ class I18n {
           
           // Footer
           footer: {
-            version: 'CommandBar Pro v1.2.0',
+            version: 'CommandBar Pro v1.3.0',
             changelog: 'Registro de cambios',
             reportBug: 'Reportar bug',
             viewSource: 'Ver código fuente'
@@ -486,7 +486,7 @@ class I18n {
 
         // Popup
         popup: {
-          version: 'v1.2.0',
+          version: 'v1.3.0',
           keyboardShortcuts: 'Keyboard Shortcuts',
           openCommandBar: 'Open Command Bar',
           developerMode: 'Developer mode',
@@ -703,7 +703,7 @@ class I18n {
           
           // Footer
           footer: {
-            version: 'CommandBar Pro v1.2.0',
+            version: 'CommandBar Pro v1.3.0',
             changelog: 'Changelog',
             reportBug: 'Report bug',
             viewSource: 'View source code'
