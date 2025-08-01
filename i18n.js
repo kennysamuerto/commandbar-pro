@@ -257,6 +257,13 @@ class I18n {
             dataCleanupDesc: 'Gestionar datos almacenados',
             usageStats: 'Estadísticas de uso (local)',
             
+            // Acciones de privacidad
+            actions: {
+              clearCache: 'Limpiar Cache',
+              clearStats: 'Limpiar Estadísticas',
+              resetAll: 'Restablecer Todo'
+            },
+            
             statsViewer: 'Estadísticas Recopiladas',
             statsViewerDesc: 'Visualiza las estadísticas de uso almacenadas localmente',
             viewStats: 'Ver Estadísticas',
@@ -635,6 +642,13 @@ class I18n {
             dataCleanup: 'Data Cleanup',
             dataCleanupDesc: 'Manage stored data',
             usageStats: 'Usage statistics (local)',
+            
+            // Privacy actions
+            actions: {
+              clearCache: 'Clear Cache',
+              clearStats: 'Clear Statistics',
+              resetAll: 'Reset All'
+            },
             
             statsViewer: 'Statistics Viewer',
             statsViewerDesc: 'View locally stored usage statistics',

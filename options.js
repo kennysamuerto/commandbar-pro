@@ -484,7 +484,14 @@ function applyThemeChange(theme) {
 function updateElementText(elementId, translationKey, replacements = {}, i18nInstance = window.i18n || i18n) {
   const element = document.getElementById(elementId);
   if (element && i18nInstance && typeof i18nInstance.t === 'function') {
-    element.textContent = i18nInstance.t(translationKey, replacements);
+    try {
+      const translation = i18nInstance.t(translationKey, replacements);
+      if (translation && translation !== translationKey) {
+        element.textContent = translation;
+      }
+    } catch (error) {
+      console.warn(`Error translating ${translationKey}:`, error);
+    }
   }
   // Note: Silently skip missing elements as they may be context-specific
 }
@@ -584,6 +591,23 @@ function updateInterface() {
   updateElementText('clear-stats-text', 'options.privacy.actions.clearStats', {}, i18nInstance);
   updateElementText('reset-all-text', 'options.privacy.actions.resetAll', {}, i18nInstance);
   
+  // Retry específico para traducciones de privacidad si fallan
+  setTimeout(() => {
+    const clearCacheText = document.getElementById('clear-cache-text');
+    const clearStatsText = document.getElementById('clear-stats-text');
+    const resetAllText = document.getElementById('reset-all-text');
+    
+    if (clearCacheText && clearCacheText.textContent.includes('options.privacy.actions.clearCache')) {
+      updateElementText('clear-cache-text', 'options.privacy.actions.clearCache', {}, i18nInstance);
+    }
+    if (clearStatsText && clearStatsText.textContent.includes('options.privacy.actions.clearStats')) {
+      updateElementText('clear-stats-text', 'options.privacy.actions.clearStats', {}, i18nInstance);
+    }
+    if (resetAllText && resetAllText.textContent.includes('options.privacy.actions.resetAll')) {
+      updateElementText('reset-all-text', 'options.privacy.actions.resetAll', {}, i18nInstance);
+    }
+  }, 1000);
+  
   // Sección experimental ahora tiene textos hardcodeados en inglés en el HTML
   // (ya no necesita traducciones dinámicas para evitar problemas)
   
@@ -607,6 +631,46 @@ function updateInterface() {
   
   // Actualizar atajos de teclado según la plataforma
   updateKeyboardShortcuts();
+  
+  // Retry agresivo para traducciones de privacidad
+  setTimeout(() => {
+    const privacyElements = [
+      { id: 'clear-cache-text', key: 'options.privacy.actions.clearCache' },
+      { id: 'clear-stats-text', key: 'options.privacy.actions.clearStats' },
+      { id: 'reset-all-text', key: 'options.privacy.actions.resetAll' }
+    ];
+    
+    privacyElements.forEach(({ id, key }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        const currentText = element.textContent;
+        const translation = i18nInstance.t(key);
+        if (translation && translation !== key && currentText !== translation) {
+          element.textContent = translation;
+        }
+      }
+    });
+  }, 500);
+  
+  // Retry adicional después de 2 segundos
+  setTimeout(() => {
+    const privacyElements = [
+      { id: 'clear-cache-text', key: 'options.privacy.actions.clearCache' },
+      { id: 'clear-stats-text', key: 'options.privacy.actions.clearStats' },
+      { id: 'reset-all-text', key: 'options.privacy.actions.resetAll' }
+    ];
+    
+    privacyElements.forEach(({ id, key }) => {
+      const element = document.getElementById(id);
+      if (element) {
+        const currentText = element.textContent;
+        const translation = i18nInstance.t(key);
+        if (translation && translation !== key && currentText !== translation) {
+          element.textContent = translation;
+        }
+      }
+    });
+  }, 2000);
   
 }
 
