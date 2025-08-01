@@ -222,16 +222,19 @@
 
 .commandbar-suggestions {
   padding: 8px 0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 270px; /* Altura mínima fija para evitar saltos */
+  transition: all 0.2s ease-out;
   transform-origin: top;
+  position: relative;
 }
 
 .commandbar-section {
   margin-bottom: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease-out;
   transform-origin: top;
   opacity: 1;
   transform: translateY(0);
+  position: relative;
 }
 
 .commandbar-section:last-child {
@@ -530,6 +533,7 @@
   transform: translateY(-10px);
   height: 0;
   overflow: hidden;
+  transition: all 0.3s ease-out;
 }
 
 .commandbar-section.fade-out {
@@ -538,6 +542,7 @@
   height: 0;
   margin-bottom: 0;
   overflow: hidden;
+  transition: all 0.3s ease-out;
 }
 
 .commandbar-section.fade-in {
@@ -545,17 +550,21 @@
   transform: translateY(0);
   height: auto;
   overflow: visible;
+  transition: all 0.3s ease-out;
 }
+
+
 
 /* Mejorar la animación de entrada de elementos */
 .commandbar-item {
-  animation: commandbar-item-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: commandbar-item-slide-in 0.3s ease-out;
+  transition: all 0.2s ease-out;
 }
 
 @keyframes commandbar-item-slide-in {
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-10px);
   }
   to {
     opacity: 1;
