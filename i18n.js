@@ -160,6 +160,22 @@ class I18n {
           tips: {
             useSlash: 'Usa "/" al inicio para comandos específicos',
             directUrl: 'Escribe una URL para navegación directa'
+          },
+          
+          // Comandos específicos
+          commands: {
+            newTab: 'nueva pestaña',
+            newTabDesc: 'Crear nueva pestaña',
+            pin: 'pinear',
+            pinDesc: 'Pinear pestaña actual',
+            close: 'cerrar',
+            closeDesc: 'Cerrar pestaña actual',
+            duplicate: 'duplicar',
+            duplicateDesc: 'Duplicar pestaña actual',
+            bookmarks: 'marcadores',
+            bookmarksDesc: 'Mostrar marcadores',
+            history: 'historial',
+            historyDesc: 'Mostrar historial'
           }
         },
         
@@ -523,6 +539,22 @@ class I18n {
           tips: {
             useSlash: 'Use "/" at the start for specific commands',
             directUrl: 'Type a URL for direct navigation'
+          },
+          
+          // Commands
+          commands: {
+            newTab: 'new tab',
+            newTabDesc: 'Create new tab',
+            pin: 'pin',
+            pinDesc: 'Pin current tab',
+            close: 'close',
+            closeDesc: 'Close current tab',
+            duplicate: 'duplicate',
+            duplicateDesc: 'Duplicate current tab',
+            bookmarks: 'bookmarks',
+            bookmarksDesc: 'Show bookmarks',
+            history: 'history',
+            historyDesc: 'Show history'
           }
         },
         

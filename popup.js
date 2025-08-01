@@ -58,8 +58,8 @@ function updateKeyboardShortcuts() {
   
   if (shortcutDisplays.length >= 2) {
     shortcutDisplays[1].innerHTML = `
-      <kbd class="key">${modifierKey}</kbd> + <kbd class="key">Shift</kbd> + <kbd class="key">K</kbd>
-      <span class="shortcut-desc" id="popup-edit-current-url">Editar URL actual</span>
+      <kbd class="key">${modifierKey}</kbd> + <kbd class="key">Shift</kbd> + <kbd class="key">I</kbd>
+      <span class="shortcut-desc" id="popup-developer-mode">Modo desarrollador</span>
     `;
   }
 }
@@ -423,54 +423,75 @@ function updateInterface() {
   }
 
   try {
-    updateElementText('popup-title', 'appName');
+    // Título y versión
+    updateElementText('popup-app-name', 'appName');
     updateElementText('popup-version', 'popup.version');
+    
+    // Keyboard shortcuts section
+    updateElementText('popup-keyboard-shortcuts', 'popup.keyboardShortcuts');
+    updateElementText('popup-open-commandbar', 'popup.openCommandBar');
     
     // Support section
     updateElementText('support-title', 'support.title');
     updateElementText('support-message', 'support.message');
-    updateElementText('support-coffee-btn', 'support.buyMeACoffee');
+    updateElementText('support-buy-coffee', 'support.buyMeACoffee');
     
     // Features section
-    updateElementText('features-title', 'popup.features');
+    updateElementText('popup-features', 'popup.features');
     
     // Feature items
-    updateElementText('feature-universal-search', 'popup.featureItems.universalSearch');
-    updateElementText('feature-quick-navigation', 'popup.featureItems.quickNavigation');
-    updateElementText('feature-tab-management', 'popup.featureItems.tabManagement');
-    updateElementText('feature-bookmark-access', 'popup.featureItems.bookmarkAccess');
-    updateElementText('feature-history-search', 'popup.featureItems.historySearch');
-    updateElementText('feature-quick-commands', 'popup.featureItems.quickCommands');
+    updateElementText('popup-universal-search', 'popup.featureItems.universalSearch');
+    updateElementText('popup-quick-navigation', 'popup.featureItems.quickNavigation');
+    updateElementText('popup-tab-management', 'popup.featureItems.tabManagement');
+    updateElementText('popup-bookmark-access', 'popup.featureItems.bookmarkAccess');
+    updateElementText('popup-history-search', 'popup.featureItems.historySearch');
+    updateElementText('popup-quick-commands', 'popup.featureItems.quickCommands');
     
     // Commands section
-    updateElementText('commands-title', 'popup.availableCommands');
+    updateElementText('popup-available-commands', 'popup.availableCommands');
     
     // Search types section
-    updateElementText('search-types-title', 'popup.searchTypes');
-    updateElementText('search-web-title', 'popup.searchTypeItems.webSearch.title');
-    updateElementText('search-web-desc', 'popup.searchTypeItems.webSearch.desc');
-    updateElementText('search-navigation-title', 'popup.searchTypeItems.directNavigation.title');
-    updateElementText('search-navigation-desc', 'popup.searchTypeItems.directNavigation.desc');
-    updateElementText('search-tabs-title', 'popup.searchTypeItems.openTabs.title');
-    updateElementText('search-tabs-desc', 'popup.searchTypeItems.openTabs.desc');
-    updateElementText('search-bookmarks-title', 'popup.searchTypeItems.bookmarks.title');
-    updateElementText('search-bookmarks-desc', 'popup.searchTypeItems.bookmarks.desc');
-    updateElementText('search-history-title', 'popup.searchTypeItems.history.title');
-    updateElementText('search-history-desc', 'popup.searchTypeItems.history.desc');
+    updateElementText('popup-search-types', 'popup.searchTypes');
+    updateElementText('popup-web-search-title', 'popup.searchTypeItems.webSearch.title');
+    updateElementText('popup-web-search-desc', 'popup.searchTypeItems.webSearch.desc');
+    updateElementText('popup-direct-nav-title', 'popup.searchTypeItems.directNavigation.title');
+    updateElementText('popup-direct-nav-desc', 'popup.searchTypeItems.directNavigation.desc');
+    updateElementText('popup-open-tabs-title', 'popup.searchTypeItems.openTabs.title');
+    updateElementText('popup-open-tabs-desc', 'popup.searchTypeItems.openTabs.desc');
+    updateElementText('popup-bookmarks-title', 'popup.searchTypeItems.bookmarks.title');
+    updateElementText('popup-bookmarks-desc', 'popup.searchTypeItems.bookmarks.desc');
+    updateElementText('popup-history-title', 'popup.searchTypeItems.history.title');
+    updateElementText('popup-history-desc', 'popup.searchTypeItems.history.desc');
     
     // Configuration section
-    updateElementText('configuration-title', 'popup.configuration');
-    updateElementText('dark-mode-label', 'popup.settings.darkTheme');
+    updateElementText('popup-configuration', 'popup.configuration');
+    updateElementText('popup-dark-theme', 'popup.settings.darkTheme');
     
     // Footer buttons
-    updateElementText('test-commandbar-text', 'popup.tryCommandBar');
-    updateElementText('advanced-settings-text', 'popup.advancedSettings');
-    updateElementText('change-language-text', 'popup.changeLanguage');
+    updateElementText('popup-try-commandbar', 'popup.tryCommandBar');
+    updateElementText('popup-advanced-settings', 'popup.advancedSettings');
+    updateElementText('popup-change-language', 'popup.changeLanguage');
     
     // Tips section
-    updateElementText('tips-title', 'popup.tips');
-    updateElementText('tip-slash', 'popup.tips.useSlash');
-    updateElementText('tip-url', 'popup.tips.directUrl');
+    updateElementText('popup-tip-slash', 'popup.tips.useSlash');
+    updateElementText('popup-tip-url', 'popup.tips.directUrl');
+    
+    // Keyboard shortcuts
+    updateElementText('popup-developer-mode', 'popup.developerMode');
+    
+    // Commands section
+    updateElementText('popup-cmd-new-tab', 'popup.commands.newTab');
+    updateElementText('popup-cmd-new-tab-desc', 'popup.commands.newTabDesc');
+    updateElementText('popup-cmd-pin', 'popup.commands.pin');
+    updateElementText('popup-cmd-pin-desc', 'popup.commands.pinDesc');
+    updateElementText('popup-cmd-close', 'popup.commands.close');
+    updateElementText('popup-cmd-close-desc', 'popup.commands.closeDesc');
+    updateElementText('popup-cmd-duplicate', 'popup.commands.duplicate');
+    updateElementText('popup-cmd-duplicate-desc', 'popup.commands.duplicateDesc');
+    updateElementText('popup-cmd-bookmarks', 'popup.commands.bookmarks');
+    updateElementText('popup-cmd-bookmarks-desc', 'popup.commands.bookmarksDesc');
+    updateElementText('popup-cmd-history', 'popup.commands.history');
+    updateElementText('popup-cmd-history-desc', 'popup.commands.historyDesc');
     
   } catch (error) {
     console.error('Error updating interface:', error);
