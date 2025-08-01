@@ -4,6 +4,16 @@ let isCommandBarVisible = false;
 let editMode = false; // Modo edición de URL actual
 let isInitialized = false; // Flag para evitar inicialización duplicada
 
+// Variables globales
+let userSettings = {};
+let searchTimeout = null;
+let autocompleteTimeout = null;
+let isDeleting = false;
+let lastInputLength = 0;
+let isDeletingTimeout = null;
+let isInDeletionMode = false;
+let isAutocompletingFromTyping = false;
+
 // Función para tracking de uso local (envía al background script)
 async function trackUsageLocal(action, details = {}) {
   try {
@@ -17,8 +27,8 @@ async function trackUsageLocal(action, details = {}) {
   }
 }
 
-// Configuración de usuario
-let userSettings = {
+// Configuración de usuario (ya declarada arriba)
+userSettings = {
   defaultSearchEngine: 'google',
   searchTabs: true,
   searchBookmarks: true,
@@ -30,13 +40,19 @@ let userSettings = {
 // Función para cargar configuración
 async function loadUserSettings() {
   try {
-    const settings = await chrome.storage.sync.get(['defaultSearchEngine', 'searchTabs', 'searchBookmarks', 'searchHistory', 'maxResults', 'searchDelay']);
+    const settings = await chrome.storage.sync.get(['defaultSearchEngine', 'searchTabs', 'searchBookmarks', 'searchHistory', 'maxResults', 'searchDelay', 'language']);
     userSettings.defaultSearchEngine = settings.defaultSearchEngine || 'google';
     userSettings.searchTabs = settings.searchTabs !== false; // Por defecto true
     userSettings.searchBookmarks = settings.searchBookmarks !== false; // Por defecto true
     userSettings.searchHistory = settings.searchHistory !== false; // Por defecto true
     userSettings.maxResults = settings.maxResults || 5;
     userSettings.searchDelay = settings.searchDelay || 50;
+    userSettings.language = settings.language || 'es';
+    
+    // Sincronizar idioma con i18n
+    if (typeof i18n !== 'undefined' && i18n && typeof i18n.setLanguage === 'function') {
+      await i18n.setLanguage(userSettings.language);
+    }
   } catch (error) {
     // Error silencioso para páginas donde chrome.storage no está disponible
     userSettings.defaultSearchEngine = 'google';
@@ -45,6 +61,7 @@ async function loadUserSettings() {
     userSettings.searchHistory = true;
     userSettings.maxResults = 5;
     userSettings.searchDelay = 50;
+    userSettings.language = 'es';
   }
 }
 
@@ -152,20 +169,14 @@ const AUTOCOMPLETE_CACHE_SIZE = 5000; // Tamaño máximo del cache
 const AUTOCOMPLETE_CACHE_TRIM_SIZE = 2500; // Tamaño al que se reduce cuando se limpia
 const AUTOCOMPLETE_DEBOUNCE_MS = 50; // Tiempo de debounce para autocompletado rápido
 
-// Manejar entrada de texto
-let searchTimeout;
+// Variables para autocompletado
 let autocompleteSuggestion = '';
 let autocompleteData = null;
-let isAutocompletingFromTyping = false;
-let isDeleting = false;
-let lastInputLength = 0;
-let autocompleteTimeout = null; // Para debounce del autocompletado
 let lastAutocompleteQuery = ''; // Para evitar autocompletados repetidos
 let autocompleteCache = new Map(); // Cache híbrido para resultados (hasta 5000 entradas)
 let isAutocompletePending = false; // Para evitar solapamientos
-let isDeletingTimeout = null; // Para extender el período de borrado
-let isInDeletionMode = false; // Flag súper agresivo para borrado
 
+// Manejar input
 function handleInput(e) {
   const currentLength = e.target.value.length;
   const wasDeleting = isDeleting;
@@ -195,8 +206,6 @@ function handleInput(e) {
     clearAutocomplete();
     // Permitir que el input natural continúe
   }
-  
-
   
   // Si estamos en medio de un autocompletado y el usuario sigue escribiendo
   if (isAutocompletingFromTyping) {
@@ -235,6 +244,27 @@ function handleInput(e) {
   }, userSettings.searchDelay); // Usar configuración del usuario
 }
 
+// Manejar autocompletado en la barra de input
+function handleInputAutocomplete(query, suggestion) {
+  const input = document.getElementById('commandbar-input');
+  if (!input || !suggestion) return;
+  
+  // Verificar si la query está al inicio de la sugerencia
+  if (suggestion.toLowerCase().startsWith(query.toLowerCase())) {
+    // Calcular el texto a autocompletar
+    const autocompleteText = suggestion.substring(query.length);
+    
+    // Establecer el valor completo
+    input.value = query + autocompleteText;
+    
+    // Seleccionar solo la parte autocompletada
+    input.setSelectionRange(query.length, suggestion.length);
+    
+    // Marcar que estamos en modo autocompletado
+    isAutocompletingFromTyping = true;
+  }
+}
+
 // Función de autocompletado instantáneo usando el historial
 async function performAutocompleteInstant(query) {
   if (!query || query.length < 2) {
@@ -258,9 +288,29 @@ async function performAutocompleteInstant(query) {
   }
 }
 
-// Función de autocompletado clásica (para compatibilidad)
+// Realizar autocompletado
 async function performAutocomplete(query) {
-  return performAutocompleteInstant(query);
+  try {
+    // Buscar en historial para autocompletado
+    const response = await chrome.runtime.sendMessage({
+      action: 'search_history_autocomplete',
+      query: query
+    });
+    
+    if (response.success && response.suggestion) {
+      // Autocompletar en la barra de input
+      handleInputAutocomplete(query, response.suggestion);
+      
+      // Mostrar sugerencias integradas en el menú (sin hint flotante)
+      showIntegratedSuggestions(response.favicon, response.title, response.suggestion);
+    } else {
+      // Limpiar autocompletado si no hay sugerencias
+      clearAutocomplete();
+    }
+  } catch (error) {
+    // Error silencioso para no afectar la experiencia
+    clearAutocomplete();
+  }
 }
 
 // Autocompletado estilo Arc Browser
@@ -306,40 +356,10 @@ function showArcStyleAutocomplete(query, suggestion, favicon, title) {
   }
 }
 
-// Mostrar favicon y hint
+// Mostrar sugerencia de autocompletado con favicon (solo integrada en menú)
 function showFaviconHint(favicon, title, url) {
-  // Verificar si la URL contiene espacios (no es URL válida)
-  const input = document.getElementById('commandbar-input');
-  if (input && input.value.includes(' ')) {
-    // No mostrar favicon si hay espacios
-    return;
-  }
-  
-  // Remover hint anterior
-  const existingHint = document.getElementById('commandbar-favicon-hint');
-  if (existingHint) {
-    existingHint.remove();
-  }
-  
-  const header = document.querySelector('.commandbar-header');
-  if (!header) return;
-  
-  const hintEl = document.createElement('div');
-  hintEl.id = 'commandbar-favicon-hint';
-  hintEl.className = 'commandbar-favicon-hint';
-  
-  const faviconImg = favicon ? `<img src="${favicon}" class="favicon-img" onerror="this.style.display='none'">` : '';
-  
-  hintEl.innerHTML = `
-    ${faviconImg}
-    <div class="hint-content">
-      <div class="hint-title">${title || url}</div>
-      <div class="hint-url">${url}</div>
-    </div>
-    <div class="hint-action">${i18n.t('hints.pressEnter')}</div>
-  `;
-  
-  header.appendChild(hintEl);
+  // Solo mostrar la recomendación integrada en el menú
+  showIntegratedSuggestions(favicon, title, url);
 }
 
 
@@ -397,36 +417,10 @@ function showToast(message, type = 'info') {
 
 // Limpiar autocompletado
 function clearAutocomplete() {
-  autocompleteSuggestion = '';
-  autocompleteData = null;
-  lastAutocompleteQuery = '';
-  isAutocompletePending = false;
-  
-  // Limpiar timeout si existe
-  if (autocompleteTimeout) {
-    clearTimeout(autocompleteTimeout);
-    autocompleteTimeout = null;
-  }
-  
-  // Limpiar timeout de borrado si existe
-  if (isDeletingTimeout) {
-    clearTimeout(isDeletingTimeout);
-    isDeletingTimeout = null;
-  }
-  
-  // Resetear flags de borrado
-  isInDeletionMode = false;
-  
-  // Remover hint del favicon
-  const faviconHint = document.getElementById('commandbar-favicon-hint');
-  if (faviconHint) {
-    faviconHint.remove();
-  }
-  
-  // Remover elemento de autocompletado antiguo si existe
-  const autocompleteEl = document.getElementById('commandbar-autocomplete');
-  if (autocompleteEl) {
-    autocompleteEl.style.display = 'none';
+  // Remover sección de autocompletado integrada
+  const integratedSection = document.querySelector('.commandbar-section[data-type="integrated-autocomplete"]');
+  if (integratedSection) {
+    integratedSection.remove();
   }
 }
 
@@ -453,18 +447,11 @@ function handleKeyDown(e) {
       break;
       
     case 'Tab':
-      e.preventDefault();
-      // Si hay autocompletado activo, aceptarlo
-      if (autocompleteSuggestion && e.target.selectionStart !== e.target.value.length) {
-        // Mover cursor al final
+      // Aceptar autocompletado con Tab
+      if (autocompleteSuggestion && e.target.selectionStart < e.target.value.length) {
+        e.preventDefault();
         e.target.setSelectionRange(e.target.value.length, e.target.value.length);
         clearAutocomplete();
-      } else {
-        // Si no hay autocompletado y es texto (no URL), buscar en Perplexity
-        const query = e.target.value.trim();
-        if (query && !isURL(query) && !query.startsWith('/')) {
-          searchInPerplexity(query);
-        }
       }
       break;
       
@@ -1327,6 +1314,115 @@ function clearEditModeHint() {
   }
 }
 
+// Mostrar sugerencias integradas en el menú (independiente del autocompletado en la barra)
+function showIntegratedSuggestions(favicon, title, url) {
+  const suggestionsContainer = document.getElementById('commandbar-suggestions');
+  if (!suggestionsContainer) return;
+  
+  // Función interna para crear la sugerencia integrada
+  function createIntegratedSuggestion() {
+    // Verificar si ya existe una sección de autocompletado integrada
+    let existingSection = suggestionsContainer.querySelector('.commandbar-section[data-type="integrated-autocomplete"]');
+    
+    if (!existingSection) {
+      // Crear nueva sección de autocompletado integrada
+      existingSection = document.createElement('div');
+      existingSection.className = 'commandbar-section';
+      existingSection.setAttribute('data-type', 'integrated-autocomplete');
+      
+      // Usar traducción con fallback más robusto
+      let sectionTitle = 'Autocompletado'; // Fallback por defecto
+      try {
+        if (typeof i18n !== 'undefined' && i18n && typeof i18n.t === 'function') {
+          const translated = i18n.t('sections.autocomplete');
+          if (translated && translated !== 'sections.autocomplete') {
+            sectionTitle = translated;
+          }
+        }
+      } catch (error) {
+        // Error silencioso, usar fallback
+      }
+      
+      existingSection.innerHTML = `
+        <div class="commandbar-section-title">${sectionTitle}</div>
+      `;
+      
+      // Insertar al principio del contenedor de sugerencias
+      suggestionsContainer.insertBefore(existingSection, suggestionsContainer.firstChild);
+    }
+    
+    // Limpiar contenido anterior de la sección
+    let sectionTitle = 'Autocompletado'; // Fallback por defecto
+    try {
+      if (typeof i18n !== 'undefined' && i18n && typeof i18n.t === 'function') {
+        const translated = i18n.t('sections.autocomplete');
+        if (translated && translated !== 'sections.autocomplete') {
+          sectionTitle = translated;
+        }
+      }
+    } catch (error) {
+      // Error silencioso, usar fallback
+    }
+    
+    existingSection.innerHTML = `
+      <div class="commandbar-section-title">${sectionTitle}</div>
+    `;
+    
+    // Crear elemento de autocompletado integrado
+    const autocompleteItem = document.createElement('div');
+    autocompleteItem.className = 'commandbar-item commandbar-autocomplete-item';
+    autocompleteItem.dataset.action = 'navigate';
+    autocompleteItem.dataset.url = url;
+    
+    // Usar traducción con fallback más robusto
+    let actionText = 'Abrir'; // Fallback por defecto
+    try {
+      if (typeof i18n !== 'undefined' && i18n && typeof i18n.t === 'function') {
+        const translated = i18n.t('actions.open');
+        if (translated && translated !== 'actions.open') {
+          actionText = translated;
+        }
+      }
+    } catch (error) {
+      // Error silencioso, usar fallback
+    }
+    
+    autocompleteItem.innerHTML = `
+      <span class="commandbar-favicon">
+        <img src="${favicon}" alt="" onerror="this.style.display='none'">
+      </span>
+      <div class="commandbar-text">
+        <div class="commandbar-title">${title}</div>
+        <div class="commandbar-url">${url}</div>
+      </div>
+      <span class="commandbar-shortcut">${actionText}</span>
+    `;
+    
+    // Agregar evento de clic
+    autocompleteItem.addEventListener('click', () => {
+      navigateToUrl(url);
+    });
+    
+    // Agregar a la sección
+    existingSection.appendChild(autocompleteItem);
+  }
+  
+  // Intentar crear inmediatamente, si falla, esperar un poco
+  try {
+    createIntegratedSuggestion();
+  } catch (error) {
+    // Si hay error, esperar un poco y reintentar
+    setTimeout(() => {
+      try {
+        createIntegratedSuggestion();
+      } catch (retryError) {
+        // Si aún falla, crear con fallbacks por defecto
+        createIntegratedSuggestion();
+      }
+    }, 100);
+  }
+}
+
 // Escuchar mensajes del background script
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   
@@ -1423,6 +1519,15 @@ async function initializeContentScript() {
     
     // Cargar configuración del usuario
     await loadUserSettings();
+    
+    // Esperar un poco más para asegurar que i18n esté completamente cargado
+    if (typeof i18n !== 'undefined' && i18n && typeof i18n.setLanguage === 'function') {
+      // Verificar que el idioma esté correctamente cargado
+      const currentLanguage = i18n.getCurrentLanguage();
+      if (currentLanguage !== userSettings.language) {
+        await i18n.setLanguage(userSettings.language);
+      }
+    }
     
     // Marcar como inicializado
     isInitialized = true;

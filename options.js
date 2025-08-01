@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       try {
         // Verificar que i18n esté disponible
         if (typeof window.i18n === 'undefined' && typeof i18n === 'undefined') {
-          await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 100));
           initAttempts++;
           continue;
         }

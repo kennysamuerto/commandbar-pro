@@ -562,3 +562,48 @@
     transform: translateX(0);
   }
 } 
+
+/* Estilos para elemento de autocompletado integrado */
+.commandbar-autocomplete-item {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.commandbar-autocomplete-item:hover {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  border-color: #cbd5e1;
+}
+
+.commandbar-autocomplete-item .commandbar-title {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.commandbar-autocomplete-item .commandbar-url {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Tema oscuro para autocompletado */
+@media (prefers-color-scheme: dark) {
+  .commandbar-autocomplete-item {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-color: #475569;
+  }
+  
+  .commandbar-autocomplete-item:hover {
+    background: linear-gradient(135deg, #334155 0%, #475569 100%);
+    border-color: #64748b;
+  }
+  
+  .commandbar-autocomplete-item .commandbar-title {
+    color: #f1f5f9;
+  }
+  
+  .commandbar-autocomplete-item .commandbar-url {
+    color: #94a3b8;
+  }
+} 

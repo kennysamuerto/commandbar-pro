@@ -57,7 +57,8 @@ class I18n {
           navigation: 'Navegación',
           openTabs: 'Pestañas Abiertas',
           bookmarks: 'Marcadores',
-          history: 'Historial'
+          history: 'Historial',
+          autocomplete: 'Autocompletado'
         },
         
         // Búsquedas
@@ -74,9 +75,19 @@ class I18n {
         
         // Hints y ayuda
         hints: {
-          pressEnter: 'Presiona Enter ↵',
-          editMode: 'Modo edición - Los cambios se abren en esta pestaña',
-          tabHint: 'Presiona Tab para buscar en Perplexity'
+          pressEnter: 'Presiona Enter',
+          pressTab: 'Presiona Tab',
+          editMode: 'Modo Edición - Todas las acciones se abren en esta pestaña'
+        },
+        
+        // Acciones
+        actions: {
+          open: 'Abrir',
+          openInNewTab: 'Abrir en Nueva Pestaña',
+          openInBackground: 'Abrir en Segundo Plano',
+          close: 'Cerrar',
+          pin: 'Pinear',
+          duplicate: 'Duplicar'
         },
         
         // Support section
@@ -238,9 +249,12 @@ class I18n {
             statsEmpty: 'Activa la recopilación de datos para ver estadísticas',
             
             actions: {
-              clearCache: 'Limpiar Cache',
-              clearStats: 'Limpiar Estadísticas',
-              resetAll: 'Restablecer Todo'
+              open: 'Abrir',
+              openInNewTab: 'Abrir en Nueva Pestaña',
+              openInBackground: 'Abrir en Segundo Plano',
+              close: 'Cerrar',
+              pin: 'Pinear',
+              duplicate: 'Duplicar'
             },
             
             // Etiquetas de estadísticas
@@ -406,7 +420,8 @@ class I18n {
           navigation: 'Navigation',
           openTabs: 'Open Tabs',
           bookmarks: 'Bookmarks',
-          history: 'History'
+          history: 'History',
+          autocomplete: 'Autocomplete'
         },
         
         // Search
@@ -423,9 +438,19 @@ class I18n {
         
         // Hints and help
         hints: {
-          pressEnter: 'Press Enter ↵',
-          editMode: 'Edit mode - Changes open in this tab',
-          tabHint: 'Press Tab to search in Perplexity'
+          pressEnter: 'Press Enter',
+          pressTab: 'Press Tab',
+          editMode: 'Edit Mode - All actions open in this tab'
+        },
+        
+        // Actions
+        actions: {
+          open: 'Open',
+          openInNewTab: 'Open in New Tab',
+          openInBackground: 'Open in Background',
+          close: 'Close',
+          pin: 'Pin',
+          duplicate: 'Duplicate'
         },
         
         // Support section
@@ -587,9 +612,12 @@ class I18n {
             statsEmpty: 'Enable data collection to view statistics',
             
             actions: {
-              clearCache: 'Clear Cache',
-              clearStats: 'Clear Statistics',
-              resetAll: 'Reset All'
+              open: 'Open',
+              openInNewTab: 'Open in New Tab',
+              openInBackground: 'Open in Background',
+              close: 'Close',
+              pin: 'Pin',
+              duplicate: 'Duplicate'
             },
             
             // Statistics labels
