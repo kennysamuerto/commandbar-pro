@@ -704,43 +704,48 @@ async function showSearchSuggestions(query) {
     
     // Agregar sugerencias de búsqueda web si hay texto pero pocos resultados
     if (query.trim() && (!hasResults || suggestionsContainer.children.length < 3)) {
-      const engines = [
-        { key: 'google', name: i18n.t('search.searchInGoogle', { query }) },
-        { key: 'bing', name: i18n.t('search.searchInBing', { query }) },
-        { key: 'duckduckgo', name: i18n.t('search.searchInDuckDuckGo', { query }) },
-        { key: 'yahoo', name: i18n.t('search.searchInYahoo', { query }) },
-        { key: 'perplexity', name: i18n.t('search.searchInPerplexity', { query }) }
-      ];
-      
-      // Crear sección de búsqueda web
-      const webSection = document.createElement('div');
-      webSection.className = 'commandbar-section';
-      webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
-      
-      engines.forEach((engine, index) => {
-        const item = document.createElement('div');
-        item.className = 'commandbar-item';
-        item.dataset.action = `${engine.key}-search`;
-        item.dataset.query = query;
+      // Verificar que no exista ya una sección de Web Search para evitar duplicaciones
+      const existingWebSearch = suggestionsContainer.querySelector('.commandbar-section[data-type="web-search"]');
+      if (!existingWebSearch) {
+        const engines = [
+          { key: 'google', name: i18n.t('search.searchInGoogle', { query }) },
+          { key: 'bing', name: i18n.t('search.searchInBing', { query }) },
+          { key: 'duckduckgo', name: i18n.t('search.searchInDuckDuckGo', { query }) },
+          { key: 'yahoo', name: i18n.t('search.searchInYahoo', { query }) },
+          { key: 'perplexity', name: i18n.t('search.searchInPerplexity', { query }) }
+        ];
         
-        // Determinar el atajo de teclado
-        let shortcut = '';
-        if (engine.key === 'perplexity') {
-          shortcut = 'Tab';
-        } else if (engine.key === userSettings.defaultSearchEngine) {
-          shortcut = 'Enter';
-        }
+        // Crear sección de búsqueda web
+        const webSection = document.createElement('div');
+        webSection.className = 'commandbar-section';
+        webSection.dataset.type = 'web-search'; // Marcar para evitar duplicaciones
+        webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
         
-        item.innerHTML = `
-          <span class="commandbar-icon">🔍</span>
-          <span class="commandbar-text">${engine.name}</span>
-          ${shortcut ? `<span class="commandbar-shortcut">${shortcut}</span>` : ''}
-        `;
-        webSection.appendChild(item);
-      });
-      
-      suggestionsContainer.appendChild(webSection);
-      hasResults = true;
+        engines.forEach((engine, index) => {
+          const item = document.createElement('div');
+          item.className = 'commandbar-item';
+          item.dataset.action = `${engine.key}-search`;
+          item.dataset.query = query;
+          
+          // Determinar el atajo de teclado
+          let shortcut = '';
+          if (engine.key === 'perplexity') {
+            shortcut = 'Tab';
+          } else if (engine.key === userSettings.defaultSearchEngine) {
+            shortcut = 'Enter';
+          }
+          
+          item.innerHTML = `
+            <span class="commandbar-icon">🔍</span>
+            <span class="commandbar-text">${engine.name}</span>
+            ${shortcut ? `<span class="commandbar-shortcut">${shortcut}</span>` : ''}
+          `;
+          webSection.appendChild(item);
+        });
+        
+        suggestionsContainer.appendChild(webSection);
+        hasResults = true;
+      }
     }
     
   } catch (error) {
