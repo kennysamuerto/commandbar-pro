@@ -18,6 +18,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### [1.3.0] - 2025-01-27
+
+#### ✨ Added
+- **🖼️ New Window Command**: Create new browser windows with `Ctrl+N` shortcut
+- **🕵️ Incognito Window Command**: Open incognito windows for private browsing
+- **🔄 Reload Tab Command**: Refresh current tab with visual feedback
+- **🔧 Developer Mode Command**: Toggle developer tools with `Ctrl+Shift+I`
+- **📖 Enhanced Reader Mode**: Improved visual filters with better contrast and saturation
+- **🎯 Toast Notifications**: Visual feedback for all command executions
+
+#### 🐛 Fixed
+- **Command Execution Issues**: Fixed all non-working commands (pin, close, duplicate, reload)
+- **Popup Translations**: Complete translation support for all popup elements
+- **Options Page Translations**: Fixed missing translations for privacy actions
+- **Duplicate Web Search**: Prevented duplicate web search sections in suggestions
+- **Background Script Actions**: Added missing `get_current_tab`, `create_window`, `create_incognito_window`, `reload_tab`, `toggle_devtools` actions
+
+#### 🔧 Changed
+- **Removed Edit Current URL**: Replaced with more useful Developer Mode command
+- **Improved Error Handling**: Better error management with user-friendly messages
+- **Enhanced Translation System**: More robust translation loading with retry mechanisms
+- **Updated Keyboard Shortcuts**: Changed `Ctrl+Shift+K` to `Ctrl+Shift+I` for developer mode
+
+#### 🚀 Improved
+- **Command Feedback**: All commands now show success/error notifications
+- **Translation Robustness**: Aggressive retry system for problematic translations
+- **User Experience**: Better visual feedback and error messages
+- **Code Quality**: Improved error handling and logging throughout the extension
+
+#### 🔧 Technical
+- Added comprehensive background script functions for tab and window management
+- Implemented robust translation retry system for options page
+- Enhanced content script with better error handling
+- Improved i18n system with fallback mechanisms
+- Added toast notification system for user feedback
+
 ### [1.2.1] - 2025-07-31
 
 #### 🐛 Fixed
@@ -145,6 +181,42 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.3.0] - 2025-01-27
+
+#### ✨ Agregado
+- **🖼️ Comando Nueva Ventana**: Crear nuevas ventanas del navegador con atajo `Ctrl+N`
+- **🕵️ Comando Ventana Incognito**: Abrir ventanas incognito para navegación privada
+- **🔄 Comando Recargar Pestaña**: Actualizar pestaña actual con feedback visual
+- **🔧 Comando Modo Desarrollador**: Alternar herramientas de desarrollador con `Ctrl+Shift+I`
+- **📖 Modo Lectura Mejorado**: Filtros visuales mejorados con mejor contraste y saturación
+- **🎯 Notificaciones Toast**: Feedback visual para todas las ejecuciones de comandos
+
+#### 🐛 Corregido
+- **Problemas de Ejecución de Comandos**: Arreglados todos los comandos que no funcionaban (pinear, cerrar, duplicar, recargar)
+- **Traducciones del Popup**: Soporte completo de traducción para todos los elementos del popup
+- **Traducciones de la Página de Opciones**: Arregladas traducciones faltantes para acciones de privacidad
+- **Búsqueda Web Duplicada**: Prevenidas secciones duplicadas de búsqueda web en sugerencias
+- **Acciones del Background Script**: Agregadas acciones faltantes `get_current_tab`, `create_window`, `create_incognito_window`, `reload_tab`, `toggle_devtools`
+
+#### 🔧 Cambiado
+- **Eliminado Editar URL Actual**: Reemplazado con el más útil comando Modo Desarrollador
+- **Manejo de Errores Mejorado**: Mejor gestión de errores con mensajes amigables para el usuario
+- **Sistema de Traducción Mejorado**: Carga de traducciones más robusta con mecanismos de reintento
+- **Atajos de Teclado Actualizados**: Cambiado `Ctrl+Shift+K` a `Ctrl+Shift+I` para modo desarrollador
+
+#### 🚀 Mejorado
+- **Feedback de Comandos**: Todos los comandos ahora muestran notificaciones de éxito/error
+- **Robustez de Traducciones**: Sistema agresivo de reintento para traducciones problemáticas
+- **Experiencia de Usuario**: Mejor feedback visual y mensajes de error
+- **Calidad del Código**: Manejo de errores y logging mejorado en toda la extensión
+
+#### 🔧 Técnico
+- Agregadas funciones completas del background script para gestión de pestañas y ventanas
+- Implementado sistema robusto de reintento de traducciones para página de opciones
+- Content script mejorado con mejor manejo de errores
+- Sistema i18n mejorado con mecanismos de fallback
+- Agregado sistema de notificaciones toast para feedback del usuario
 
 ### [1.2.1] - 2025-07-31
 
