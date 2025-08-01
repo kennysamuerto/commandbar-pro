@@ -77,6 +77,8 @@ function getSearchUrl(query, engine = null) {
       return `https://duckduckgo.com/?q=${encodedQuery}`;
     case 'yahoo':
       return `https://search.yahoo.com/search?p=${encodedQuery}`;
+    case 'perplexity':
+      return `https://www.perplexity.ai/?q=${encodedQuery}`;
     case 'google':
     default:
       return `https://www.google.com/search?q=${encodedQuery}`;
@@ -447,11 +449,17 @@ function handleKeyDown(e) {
       break;
       
     case 'Tab':
-      // Aceptar autocompletado con Tab
+      e.preventDefault();
+      // Si hay autocompletado activo, aceptarlo primero
       if (autocompleteSuggestion && e.target.selectionStart < e.target.value.length) {
-        e.preventDefault();
         e.target.setSelectionRange(e.target.value.length, e.target.value.length);
         clearAutocomplete();
+      } else {
+        // Si no hay autocompletado, buscar en Perplexity
+        const query = e.target.value.trim();
+        if (query) {
+          executePerplexitySearch(query);
+        }
       }
       break;
       
@@ -709,14 +717,24 @@ async function showSearchSuggestions(query) {
       webSection.className = 'commandbar-section';
       webSection.innerHTML = `<div class="commandbar-section-title">${i18n.t('sections.webSearch')}</div>`;
       
-      engines.forEach(engine => {
+      engines.forEach((engine, index) => {
         const item = document.createElement('div');
         item.className = 'commandbar-item';
         item.dataset.action = `${engine.key}-search`;
         item.dataset.query = query;
+        
+        // Determinar el atajo de teclado
+        let shortcut = '';
+        if (engine.key === 'perplexity') {
+          shortcut = 'Tab';
+        } else if (engine.key === userSettings.defaultSearchEngine) {
+          shortcut = 'Enter';
+        }
+        
         item.innerHTML = `
           <span class="commandbar-icon">🔍</span>
           <span class="commandbar-text">${engine.name}</span>
+          ${shortcut ? `<span class="commandbar-shortcut">${shortcut}</span>` : ''}
         `;
         webSection.appendChild(item);
       });
@@ -1190,6 +1208,28 @@ async function executeSearch(query) {
       await chrome.runtime.sendMessage({
         action: 'create_tab',
         url: searchUrl,
+        fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
+      });
+    }
+    hideCommandBar();
+  }
+}
+
+// Ejecutar búsqueda específica en Perplexity
+async function executePerplexitySearch(query) {
+  if (isURL(query)) {
+    await navigateToUrl(query);
+  } else {
+    const perplexityUrl = getSearchUrl(query, 'perplexity');
+    
+    if (editMode || isOurExtensionPage()) {
+      // En modo edición O en nuestra página de extensión, buscar en la misma pestaña
+      window.location.href = perplexityUrl;
+    } else {
+      // En modo normal en otras páginas, abrir en nueva pestaña
+      await chrome.runtime.sendMessage({
+        action: 'create_tab',
+        url: perplexityUrl,
         fromCommandBar: true // Marcar que viene de CommandBar para evitar auto-open
       });
     }
