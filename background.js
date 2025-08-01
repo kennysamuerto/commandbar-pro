@@ -400,6 +400,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       createTab(message.url, message.active, sendResponse, message.fromCommandBar);
       return true;
     
+    case 'create_window':
+      createWindow(message.url, sendResponse);
+      return true;
+    
+    case 'create_incognito_window':
+      createIncognitoWindow(message.url, sendResponse);
+      return true;
+    
+    case 'reload_tab':
+      reloadTab(message.tabId, sendResponse);
+      return true;
+    
+    case 'toggle_devtools':
+      toggleDevTools(sendResponse);
+      return true;
+    
+    case 'get_current_tab':
+      getCurrentTab(sendResponse);
+      return true;
+    
     case 'switch_tab':
       switchToTab(message.tabId, sendResponse);
       return true;
@@ -493,6 +513,68 @@ async function createTab(url, active = true, sendResponse, fromCommandBar = fals
     }
     
     sendResponse({ success: true, tab });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Crear nueva ventana
+async function createWindow(url, sendResponse) {
+  try {
+    const window = await chrome.windows.create({ url });
+    sendResponse({ success: true, window });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Crear nueva ventana de incognito
+async function createIncognitoWindow(url, sendResponse) {
+  try {
+    const window = await chrome.windows.create({ 
+      url, 
+      incognito: true 
+    });
+    sendResponse({ success: true, window });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Recargar pestaña
+async function reloadTab(tabId, sendResponse) {
+  try {
+    await chrome.tabs.reload(tabId);
+    sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Alternar herramientas de desarrollador
+async function toggleDevTools(sendResponse) {
+  try {
+    const currentTab = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (currentTab[0]) {
+      await chrome.tabs.sendMessage(currentTab[0].id, { action: 'toggle_devtools' });
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: 'No active tab found' });
+    }
+  } catch (error) {
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Obtener pestaña actual
+async function getCurrentTab(sendResponse) {
+  try {
+    const currentTab = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (currentTab[0]) {
+      sendResponse({ success: true, tabId: currentTab[0].id });
+    } else {
+      sendResponse({ success: false, error: 'No active tab found' });
+    }
   } catch (error) {
     sendResponse({ success: false, error: error.message });
   }

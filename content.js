@@ -164,6 +164,23 @@ function setupEventListeners() {
 
   // Suggestion clicks
   suggestions.addEventListener('click', handleSuggestionClick);
+  
+  // Listener para mensajes del background script
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'toggle_devtools') {
+      // Alternar herramientas de desarrollador usando F12
+      const event = new KeyboardEvent('keydown', {
+        key: 'F12',
+        code: 'F12',
+        keyCode: 123,
+        which: 123,
+        bubbles: true,
+        cancelable: true
+      });
+      document.dispatchEvent(event);
+      sendResponse({ success: true });
+    }
+  });
 }
 
 // Constantes de configuración del cache híbrido
@@ -627,7 +644,7 @@ function showAllCommands(filter = '') {
     { name: i18n.t('commands.settings').toLowerCase(), icon: '⚙️', action: 'show-settings', desc: i18n.t('commandDescs.settings') },
     { name: i18n.t('commands.extensions').toLowerCase(), icon: '🧩', action: 'show-extensions', desc: i18n.t('commandDescs.extensions') },
     { name: i18n.t('commands.readerMode').toLowerCase(), icon: '📖', action: 'reader-mode', desc: i18n.t('commandDescs.readerMode') },
-    { name: i18n.t('commands.editCurrentUrl').toLowerCase(), icon: '✏️', action: 'edit-current-url', desc: i18n.t('commandDescs.editCurrentUrl'), shortcut: `${modifierKey}+Shift+K` }
+    { name: i18n.t('commands.developerMode').toLowerCase(), icon: '🔧', action: 'developer-mode', desc: i18n.t('commandDescs.developerMode'), shortcut: `${modifierKey}+Shift+I` }
   ];
   
   // Filtrar comandos si hay filtro
@@ -949,24 +966,63 @@ async function executeAction(item) {
       await chrome.runtime.sendMessage({ action: 'create_tab', url: 'chrome://newtab/' });
       break;
       
+    case 'new-window':
+      await chrome.runtime.sendMessage({ action: 'create_window', url: 'chrome://newtab/' });
+      break;
+      
+    case 'incognito':
+      await chrome.runtime.sendMessage({ action: 'create_incognito_window', url: 'chrome://newtab/' });
+      break;
+      
     case 'pin-tab':
       const currentTabId = await getCurrentTabId();
       if (currentTabId) {
-        await chrome.runtime.sendMessage({ action: 'pin_tab', tabId: currentTabId });
+        try {
+          await chrome.runtime.sendMessage({ action: 'pin_tab', tabId: currentTabId });
+          showToast('Pestaña pineada', 'success');
+        } catch (error) {
+          console.error('Error pinning tab:', error);
+          showToast('Error al pinear pestaña', 'error');
+        }
       }
       break;
       
     case 'close-tab':
       const currentTabId2 = await getCurrentTabId();
       if (currentTabId2) {
-        await chrome.runtime.sendMessage({ action: 'close_tab', tabId: currentTabId2 });
+        try {
+          await chrome.runtime.sendMessage({ action: 'close_tab', tabId: currentTabId2 });
+          showToast('Pestaña cerrada', 'success');
+        } catch (error) {
+          console.error('Error closing tab:', error);
+          showToast('Error al cerrar pestaña', 'error');
+        }
       }
       break;
       
     case 'duplicate-tab':
       const currentTabId3 = await getCurrentTabId();
       if (currentTabId3) {
-        await chrome.runtime.sendMessage({ action: 'duplicate_tab', tabId: currentTabId3 });
+        try {
+          await chrome.runtime.sendMessage({ action: 'duplicate_tab', tabId: currentTabId3 });
+          showToast('Pestaña duplicada', 'success');
+        } catch (error) {
+          console.error('Error duplicating tab:', error);
+          showToast('Error al duplicar pestaña', 'error');
+        }
+      }
+      break;
+      
+    case 'reload':
+      const currentTabId4 = await getCurrentTabId();
+      if (currentTabId4) {
+        try {
+          await chrome.runtime.sendMessage({ action: 'reload_tab', tabId: currentTabId4 });
+          showToast('Pestaña recargada', 'success');
+        } catch (error) {
+          console.error('Error reloading tab:', error);
+          showToast('Error al recargar pestaña', 'error');
+        }
       }
       break;
       
@@ -1136,21 +1192,37 @@ async function executeAction(item) {
       
     case 'reader-mode':
       // Intentar activar modo lectura (experimental)
-      document.body.style.filter = document.body.style.filter ? '' : 'contrast(1.2) brightness(0.9)';
+      try {
+        if (document.body.style.filter && document.body.style.filter !== '') {
+          document.body.style.filter = '';
+          showToast('Modo lectura desactivado', 'info');
+        } else {
+          document.body.style.filter = 'contrast(1.2) brightness(0.9) saturate(0.8)';
+          showToast('Modo lectura activado', 'info');
+        }
+      } catch (error) {
+        console.error('Error toggling reader mode:', error);
+        showToast('Error al cambiar modo lectura', 'error');
+      }
       break;
       
-    case 'edit-current-url':
-      // Triggerar el modo edición de URL
-      const currentUrl = window.location.href;
-      let cleanUrl = currentUrl;
+    case 'developer-mode':
       try {
-        const url = new URL(cleanUrl);
-        cleanUrl = url.hostname.replace('www.', '') + (url.pathname !== '/' ? url.pathname : '') + url.search;
-      } catch (e) {
-        // Si no es una URL válida, usar como está
+        // Intentar abrir las herramientas de desarrollador usando F12
+        const event = new KeyboardEvent('keydown', {
+          key: 'F12',
+          code: 'F12',
+          keyCode: 123,
+          which: 123,
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(event);
+        showToast('Herramientas de desarrollador', 'info');
+      } catch (error) {
+        console.error('Error toggling developer tools:', error);
+        showToast('Error al abrir herramientas de desarrollador', 'error');
       }
-      hideCommandBar();
-      showCommandBar(cleanUrl);
       break;
 
   }
@@ -1246,7 +1318,12 @@ async function executePerplexitySearch(query) {
 async function getCurrentTabId() {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: 'get_current_tab' }, (response) => {
-      resolve(response.tabId);
+      if (response && response.success) {
+        resolve(response.tabId);
+      } else {
+        console.error('Error getting current tab ID:', response?.error);
+        resolve(null);
+      }
     });
   });
 }

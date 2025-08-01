@@ -564,7 +564,7 @@ function updateInterface() {
   updateElementText('main-shortcuts-label', 'options.keyboard.mainShortcuts', {}, i18nInstance);
   updateElementText('main-shortcuts-desc', 'options.keyboard.mainShortcutsDesc', {}, i18nInstance);
   updateElementText('open-commandbar-shortcut', 'options.keyboard.openCommandBar', {}, i18nInstance);
-  updateElementText('edit-url-shortcut', 'options.keyboard.editCurrentUrl', {}, i18nInstance);
+  updateElementText('edit-url-shortcut', 'options.keyboard.developerMode', {}, i18nInstance);
   updateElementText('additional-config-label', 'options.keyboard.additionalConfig', {}, i18nInstance);
   updateElementText('additional-config-desc', 'options.keyboard.additionalConfigDesc', {}, i18nInstance);
   updateElementText('prevent-site-shortcuts-label', 'options.keyboard.preventSiteShortcuts', {}, i18nInstance);

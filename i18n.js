@@ -27,7 +27,7 @@ class I18n {
           settings: 'Abrir Configuración',
           extensions: 'Gestionar Extensiones',
           readerMode: 'Activar Modo Lectura',
-          editCurrentUrl: 'Editar URL Actual'
+          developerMode: 'Modo Desarrollador'
         },
         
         // Descripciones de comandos
@@ -45,7 +45,7 @@ class I18n {
           settings: 'Abrir configuración',
           extensions: 'Gestionar extensiones',
           readerMode: 'Activar modo lectura',
-          editCurrentUrl: 'Editar URL actual'
+          developerMode: 'Modo desarrollador'
         },
         
         // Secciones
@@ -103,7 +103,7 @@ class I18n {
           version: 'v1.2.0',
           keyboardShortcuts: 'Atajos de Teclado',
           openCommandBar: 'Abrir Command Bar',
-          editCurrentUrl: 'Editar URL actual',
+          developerMode: 'Modo desarrollador',
           features: 'Funcionalidades',
           availableCommands: 'Comandos Disponibles',
           searchTypes: 'Tipos de Búsqueda',
@@ -227,7 +227,7 @@ class I18n {
             mainShortcuts: 'Atajos Principales',
             mainShortcutsDesc: 'Combinaciones de teclado para CommandBar',
             openCommandBar: 'Abrir Command Bar',
-            editCurrentUrl: 'Editar URL actual',
+            developerMode: 'Modo desarrollador',
             additionalConfig: 'Configuración Adicional',
             additionalConfigDesc: 'Personaliza el comportamiento de los atajos',
             preventSiteShortcuts: 'Prevenir atajos del sitio web'
@@ -390,7 +390,7 @@ class I18n {
           settings: 'Open Settings',
           extensions: 'Manage Extensions',
           readerMode: 'Enable Reader Mode',
-          editCurrentUrl: 'Edit Current URL'
+          developerMode: 'Developer Mode'
         },
         
         // Command descriptions
@@ -408,7 +408,7 @@ class I18n {
           settings: 'Open settings',
           extensions: 'Manage extensions',
           readerMode: 'Enable reader mode',
-          editCurrentUrl: 'Edit current URL'
+          developerMode: 'Developer mode'
         },
         
         // Sections
@@ -466,7 +466,7 @@ class I18n {
           version: 'v1.2.0',
           keyboardShortcuts: 'Keyboard Shortcuts',
           openCommandBar: 'Open Command Bar',
-          editCurrentUrl: 'Edit current URL',
+          developerMode: 'Developer mode',
           features: 'Features',
           availableCommands: 'Available Commands',
           searchTypes: 'Search Types',
@@ -590,7 +590,7 @@ class I18n {
             mainShortcuts: 'Main Shortcuts',
             mainShortcutsDesc: 'Keyboard combinations for CommandBar',
             openCommandBar: 'Open Command Bar',
-            editCurrentUrl: 'Edit current URL',
+            developerMode: 'Developer mode',
             additionalConfig: 'Additional Configuration',
             additionalConfigDesc: 'Customize shortcut behavior',
             preventSiteShortcuts: 'Prevent website shortcuts'
