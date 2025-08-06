@@ -97,10 +97,50 @@ class I18n {
           buyMeACoffee: 'Comprar un Café',
           thankYou: 'Gracias por tu apoyo ❤️'
         },
+        
+        // Cache management
+            cache: {
+      title: '⚡ Cache ULTRA',
+      status: {
+        title: 'Estado del Cache ULTRA',
+        description: 'Sistema de cache permanente con favicons precargados',
+        state: 'Estado:',
+        urls: 'URLs en cache:',
+        domains: 'Dominios únicos:',
+        favicons: 'Favicons cacheados:',
+        lastUpdate: 'Última actualización:',
+        memory: 'Uso de memoria:',
+        autoUpdate: 'Auto-actualización:'
+      },
+      actions: {
+        title: 'Acciones de Cache ULTRA',
+        description: 'Gestiona el sistema de cache avanzado',
+        rebuild: 'Cargar Cache ULTRA',
+        clear: 'Limpiar Cache',
+        viewTopDomains: 'Ver Dominios Top',
+        stats: 'Estadísticas'
+      },
+      config: {
+        title: 'Configuración Avanzada',
+        description: 'Ajusta el comportamiento del cache ULTRA'
+      },
+      progress: {
+        title: 'Progreso de Carga ULTRA',
+        description: 'Procesando historial completo...'
+      },
+      topDomains: {
+        title: 'Dominios Más Visitados',
+        description: 'Los sitios web más frecuentes en tu historial'
+      },
+      stats: {
+        title: 'Estadísticas Detalladas',
+        description: 'Información completa del rendimiento del cache'
+      }
+    },
 
         // Popup
         popup: {
-          version: 'v1.3.0',
+          version: 'v1.4.0',
           keyboardShortcuts: 'Atajos de Teclado',
           openCommandBar: 'Abrir Command Bar',
           developerMode: 'Modo desarrollador',
@@ -317,7 +357,7 @@ class I18n {
           
           // Footer
           footer: {
-            version: 'CommandBar Pro v1.3.0',
+            version: 'CommandBar Pro v1.4.0',
             changelog: 'Registro de cambios',
             reportBug: 'Reportar bug',
             viewSource: 'Ver código fuente'
@@ -483,10 +523,50 @@ class I18n {
           buyMeACoffee: 'Buy me a Coffee',
           thankYou: 'Thank you for your support ❤️'
         },
+        
+        // Cache management
+        cache: {
+          title: '⚡ ULTRA Cache',
+          status: {
+            title: 'ULTRA Cache Status',
+            description: 'Permanent cache system with preloaded favicons',
+            state: 'Status:',
+            urls: 'URLs in cache:',
+            domains: 'Unique domains:',
+            favicons: 'Cached favicons:',
+            lastUpdate: 'Last update:',
+            memory: 'Memory usage:',
+            autoUpdate: 'Auto-update:'
+          },
+          actions: {
+            title: 'ULTRA Cache Actions',
+            description: 'Manage the advanced cache system',
+            rebuild: 'Load ULTRA Cache',
+            clear: 'Clear Cache',
+            viewTopDomains: 'View Top Domains',
+            stats: 'Statistics'
+          },
+          config: {
+            title: 'Advanced Configuration',
+            description: 'Adjust ULTRA cache behavior'
+          },
+          progress: {
+            title: 'ULTRA Load Progress',
+            description: 'Processing complete history...'
+          },
+          topDomains: {
+            title: 'Most Visited Domains',
+            description: 'The most frequent websites in your history'
+          },
+          stats: {
+            title: 'Detailed Statistics',
+            description: 'Complete cache performance information'
+          }
+        },
 
         // Popup
         popup: {
-          version: 'v1.3.0',
+          version: 'v1.4.0',
           keyboardShortcuts: 'Keyboard Shortcuts',
           openCommandBar: 'Open Command Bar',
           developerMode: 'Developer mode',
@@ -703,7 +783,7 @@ class I18n {
           
           // Footer
           footer: {
-            version: 'CommandBar Pro v1.3.0',
+            version: 'CommandBar Pro v1.4.0',
             changelog: 'Changelog',
             reportBug: 'Report bug',
             viewSource: 'View source code'

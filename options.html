@@ -308,7 +308,143 @@
           </div>
         </section>
 
+        <!-- Cache ULTRA -->
+        <section class="option-section">
+          <h2 class="section-title">
+            <span class="section-icon">⚡</span>
+            <span id="cache-management-title">Cache ULTRA</span>
+            <span class="beta-badge">ULTRA</span>
+          </h2>
+          <div class="option-group">
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="cache-status-label">Estado del Cache ULTRA</label>
+                <p class="option-description" id="cache-status-desc">Sistema de cache permanente con favicons precargados</p>
+              </div>
+              <div class="cache-status" id="cache-status">
+                <div class="cache-info">
+                  <div class="cache-item">
+                    <span class="cache-label">Estado:</span>
+                    <span class="cache-value" id="cache-state">Cargando...</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">URLs en cache:</span>
+                    <span class="cache-value" id="cache-urls">-</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">Dominios únicos:</span>
+                    <span class="cache-value" id="cache-domains">-</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">Favicons cacheados:</span>
+                    <span class="cache-value" id="cache-favicons">-</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">Última actualización:</span>
+                    <span class="cache-value" id="cache-last-update">-</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">Uso de memoria:</span>
+                    <span class="cache-value" id="cache-memory">-</span>
+                  </div>
+                  <div class="cache-item">
+                    <span class="cache-label">Auto-actualización:</span>
+                    <span class="cache-value" id="cache-auto-update">✅ Activa</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="cache-actions-label">Acciones de Cache ULTRA</label>
+                <p class="option-description" id="cache-actions-desc">Gestiona el sistema de cache avanzado</p>
+              </div>
+              <div class="cache-actions">
+                <button class="option-button primary" id="rebuild-cache">
+                  <span class="button-icon">⚡</span>
+                  <span id="rebuild-cache-text">Cargar Cache ULTRA</span>
+                </button>
+                <button class="option-button secondary" id="clear-cache">
+                  <span class="button-icon">🗑️</span>
+                  <span id="clear-cache-text">Limpiar Cache</span>
+                </button>
+                <button class="option-button secondary" id="view-top-domains">
+                  <span class="button-icon">📊</span>
+                  <span id="view-top-domains-text">Ver Dominios Top</span>
+                </button>
+                <button class="option-button secondary" id="cache-stats">
+                  <span class="button-icon">📈</span>
+                  <span id="cache-stats-text">Estadísticas</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="option-item">
+              <div class="option-info">
+                <label class="option-label" id="cache-config-label">Configuración Avanzada</label>
+                <p class="option-description" id="cache-config-desc">Ajusta el comportamiento del cache ULTRA</p>
+              </div>
+              <div class="cache-config">
+                <div class="config-item">
+                  <label class="config-label" for="max-urls">Máximo de URLs:</label>
+                  <input type="number" id="max-urls" class="config-input" min="10000" max="200000" value="100000">
+                  <span class="config-hint">(10,000 - 200,000)</span>
+                </div>
+                <div class="config-item">
+                  <label class="config-label" for="max-favicons">Máximo de Favicons:</label>
+                  <input type="number" id="max-favicons" class="config-input" min="100" max="5000" value="1000">
+                  <span class="config-hint">(100 - 5,000)</span>
+                </div>
+                <div class="config-item">
+                  <label class="checkbox-item">
+                    <input type="checkbox" id="auto-update-cache" checked>
+                    <span class="checkbox-label">Auto-actualización al visitar páginas</span>
+                  </label>
+                </div>
+                <div class="config-item">
+                  <label class="checkbox-item">
+                    <input type="checkbox" id="persistent-cache" checked>
+                    <span class="checkbox-label">Cache persistente (sobrevive a reinicios)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="option-item" id="cache-progress-container" style="display: none;">
+              <div class="option-info">
+                <label class="option-label" id="cache-progress-label">Progreso de Carga ULTRA</label>
+                <p class="option-description" id="cache-progress-desc">Procesando historial completo...</p>
+              </div>
+              <div class="cache-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-text" id="progress-text">Iniciando...</div>
+              </div>
+            </div>
+
+            <div class="option-item" id="top-domains-container" style="display: none;">
+              <div class="option-info">
+                <label class="option-label" id="top-domains-label">Dominios Más Visitados</label>
+                <p class="option-description" id="top-domains-desc">Los sitios web más frecuentes en tu historial</p>
+              </div>
+              <div class="top-domains-list" id="top-domains-list">
+                <!-- Se llena dinámicamente -->
+              </div>
+            </div>
+
+            <div class="option-item" id="cache-stats-container" style="display: none;">
+              <div class="option-info">
+                <label class="option-label" id="cache-stats-label">Estadísticas Detalladas</label>
+                <p class="option-description" id="cache-stats-desc">Información completa del rendimiento del cache</p>
+              </div>
+              <div class="cache-stats" id="cache-stats-content">
+                <!-- Se llena dinámicamente -->
+              </div>
+            </div>
+          </div>
+        </section>
 
       </div>
     </main>

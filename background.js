@@ -4,6 +4,40 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.runtime.openOptionsPage();
   }
+  
+  // CARGAR CACHE ULTRA al instalar
+  loadUltraCache();
+  
+  // Verificar cache ULTRA cada 5 minutos para asegurar que siempre esté cargado y válido
+  setInterval(async () => {
+    if ((!ULTRA_CACHE.state.isLoaded || !ULTRA_CACHE.state.integrityValid) && !ULTRA_CACHE.state.isLoading) {
+      console.log('🔄 Verificación automática: Cache ULTRA no cargado o inválido, cargando...');
+      await loadUltraCache();
+    }
+  }, 5 * 60 * 1000); // 5 minutos
+});
+
+// Cargar cache ULTRA al arrancar la extensión
+chrome.runtime.onStartup.addListener(() => {
+  console.log('CommandBar iniciado');
+  
+  // CARGAR CACHE ULTRA al arrancar
+  loadUltraCache();
+  
+  // Verificar cache ULTRA cada 5 minutos para asegurar que siempre esté cargado y válido
+  setInterval(async () => {
+    if ((!ULTRA_CACHE.state.isLoaded || !ULTRA_CACHE.state.integrityValid) && !ULTRA_CACHE.state.isLoading) {
+      console.log('🔄 Verificación automática: Cache ULTRA no cargado o inválido, cargando...');
+      await loadUltraCache();
+    }
+  }, 5 * 60 * 1000); // 5 minutos
+});
+
+// Auto-actualizar cache ULTRA cuando se visita una página
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
+    updateUltraCache(tab.url, tab.title || '');
+  }
 });
 
 // Trackear uso de la página de opciones
@@ -441,7 +475,101 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
     
     case 'search_history_autocomplete':
-      searchHistoryForAutocomplete(message.query, sendResponse);
+      // Usar Cache ULTRA si está disponible, sino fallback a legacy
+      if (ULTRA_CACHE.state.isLoaded) {
+        searchUltraCache(message.query, sendResponse);
+      } else {
+        searchHistoryForAutocomplete(message.query, sendResponse);
+      }
+      return true;
+      
+    case 'load_ultra_cache':
+      loadUltraCache(message.forceRebuild || false, (progress) => {
+        // Enviar progreso al content script
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { 
+              action: 'ultra_cache_progress', 
+              progress: progress 
+            }).catch(() => {}); // Ignorar errores si la pestaña no está disponible
+          }
+        });
+      }).then(sendResponse);
+      return true;
+      
+    case 'get_ultra_cache_info':
+      // Validar integridad antes de enviar información
+      const integrity = validateUltraCacheIntegrity();
+      
+      // Debug: mostrar información detallada en consola
+      console.log('🔍 Debug Cache ULTRA Info:', {
+        state: ULTRA_CACHE.state,
+        memory: {
+          historySize: ULTRA_CACHE.memory.history.size,
+          domainsSize: ULTRA_CACHE.memory.domains.size,
+          wordsSize: ULTRA_CACHE.memory.words.size,
+          faviconsSize: ULTRA_CACHE.memory.favicons.size
+        },
+        integrity: integrity,
+        config: ULTRA_CACHE.config
+      });
+      
+      sendResponse({ 
+        success: true, 
+        cacheInfo: {
+          ...ULTRA_CACHE.state,
+          integrityValid: integrity.valid,
+          loadQuality: ULTRA_CACHE.state.loadQuality,
+          integrityDetails: integrity
+        },
+        config: ULTRA_CACHE.config
+      });
+      return true;
+      
+    case 'clear_ultra_cache':
+      ULTRA_CACHE.memory.history.clear();
+      ULTRA_CACHE.memory.favicons.clear();
+      ULTRA_CACHE.memory.domains.clear();
+      ULTRA_CACHE.memory.words.clear();
+      ULTRA_CACHE.state.isLoaded = false;
+      ULTRA_CACHE.state.totalUrls = 0;
+      ULTRA_CACHE.state.totalDomains = 0;
+      ULTRA_CACHE.state.totalFavicons = 0;
+      chrome.storage.local.remove([
+        'ultra_cache_history',
+        'ultra_cache_favicons',
+        'ultra_cache_state',
+        'ultra_cache_config'
+      ]).then(() => {
+        sendResponse({ success: true, message: 'Cache ULTRA limpiado' });
+      });
+      return true;
+      
+    case 'rebuild_global_cache':
+      // Esta función legacy ya no se usa, redirigir a cache ULTRA
+      loadUltraCache(true, (progress) => {
+        // Enviar progreso al content script
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { 
+              action: 'cache_progress', 
+              progress: progress 
+            }).catch(() => {}); // Ignorar errores si la pestaña no está disponible
+          }
+        });
+      }).then(sendResponse);
+      return true;
+      
+    case 'get_cache_info':
+      getGlobalCacheInfo().then(sendResponse);
+      return true;
+      
+    case 'get_top_domains':
+      getTopDomains(message.limit || 20).then(sendResponse);
+      return true;
+      
+    case 'clear_global_cache':
+      clearGlobalCache().then(sendResponse);
       return true;
       
     case 'request_commandbar_open':
@@ -633,120 +761,774 @@ async function getAllTabs(sendResponse) {
   }
 }
 
-// Cache local para background script
-let historyCache = new Map();
-let cacheTimestamp = 0;
-const CACHE_DURATION = 30000; // 30 segundos
+// CACHE ULTRA - Sistema de cache permanente y completo
+const ULTRA_CACHE = {
+  // Cache en memoria para acceso rápido
+  memory: {
+    history: new Map(),
+    favicons: new Map(),
+    domains: new Map(),
+    words: new Map()
+  },
+  
+  // Estado del cache
+  state: {
+    isLoaded: false,
+    isLoading: false,
+    lastUpdate: 0,
+    totalUrls: 0,
+    totalDomains: 0,
+    totalFavicons: 0,
+    memoryUsage: 0,
+    integrityValid: false,     // Nueva: validación de integridad
+    loadQuality: 'none'        // Nueva: calidad de carga (none, partial, full)
+  },
+  
+  // Configuración
+  config: {
+    maxHistoryResults: 100000, // 100,000 URLs máximo
+    faviconCacheSize: 1000,    // 1,000 favicons máximo
+    autoUpdate: true,          // Auto-actualización
+    persistent: true,          // Cache persistente
+    minUrlsForValidCache: 100,  // Reducido: mínimo de URLs para cache válido (más flexible)
+    maxStorageSize: 50 * 1024 * 1024 // Nueva: 50MB límite de storage
+  }
+};
+
+// Constantes para compatibilidad (ya no se usan, pero mantener por si acaso)
 const MAX_HISTORY_RESULTS = 1000; // Máximo de entradas del historial a consultar
 
-// Buscar en historial para autocompletado inteligente
-async function searchHistoryForAutocomplete(query, sendResponse) {
+// Función para validar integridad del cache ULTRA
+function validateUltraCacheIntegrity() {
   try {
-    const now = Date.now();
-    const cacheKey = query.toLowerCase();
+    const historySize = ULTRA_CACHE.memory.history.size;
+    const domainsSize = ULTRA_CACHE.memory.domains.size;
+    const wordsSize = ULTRA_CACHE.memory.words.size;
+    const faviconsSize = ULTRA_CACHE.memory.favicons.size;
     
-    // Verificar cache primero
-    if (historyCache.has(cacheKey) && (now - cacheTimestamp) < CACHE_DURATION) {
-      const cached = historyCache.get(cacheKey);
-      sendResponse(cached);
-      return;
+    // Verificar cantidad mínima de URLs (más flexible)
+    const hasMinUrls = historySize >= Math.min(ULTRA_CACHE.config.minUrlsForValidCache, 100); // Mínimo 100 URLs
+    
+    // Verificar que los índices estén construidos (más flexible)
+    const hasIndexes = domainsSize > 0; // Solo requiere dominios, no palabras
+    
+    // Verificar que no haya datos corruptos (más flexible)
+    const hasValidData = historySize > 0; // Solo requiere que haya datos
+    
+    // Determinar calidad de carga
+    let loadQuality = 'none';
+    if (historySize >= ULTRA_CACHE.config.maxHistoryResults * 0.8) {
+      loadQuality = 'full';
+    } else if (historySize >= ULTRA_CACHE.config.minUrlsForValidCache) {
+      loadQuality = 'partial';
+    } else if (historySize >= 100) {
+      loadQuality = 'minimal'; // Nueva categoría para caches pequeños pero válidos
     }
     
-    // Limpiar cache si es muy viejo
-    if ((now - cacheTimestamp) > CACHE_DURATION) {
-      historyCache.clear();
-      cacheTimestamp = now;
-    }
+    // Validación más flexible: aceptar caches con al menos 100 URLs y dominios indexados
+    const integrityValid = hasMinUrls && hasIndexes && hasValidData;
     
-    // Buscar URLs que empiecen con la query o contengan el dominio
-    const history = await chrome.history.search({
-      text: query,
-      maxResults: MAX_HISTORY_RESULTS // Ampliado para acceso completo al historial
+    // Actualizar estado
+    ULTRA_CACHE.state.integrityValid = integrityValid;
+    ULTRA_CACHE.state.loadQuality = loadQuality;
+    
+    console.log(`🔍 Validación de integridad ULTRA:`, {
+      historySize,
+      domainsSize,
+      wordsSize,
+      faviconsSize,
+      hasMinUrls: `${hasMinUrls} (${historySize} >= ${Math.min(ULTRA_CACHE.config.minUrlsForValidCache, 100)})`,
+      hasIndexes: `${hasIndexes} (domains: ${domainsSize}, words: ${wordsSize})`,
+      hasValidData: `${hasValidData} (history > 0)`,
+      integrityValid,
+      loadQuality,
+      stateTotalUrls: ULTRA_CACHE.state.totalUrls,
+      stateTotalDomains: ULTRA_CACHE.state.totalDomains
     });
     
-    // Filtrar y ordenar con algoritmo inteligente (frecuencia + recencia)
-    const relevantUrls = history
-      .filter(item => {
-        try {
-          const url = new URL(item.url);
-          const domain = url.hostname.replace('www.', '');
-          const fullUrl = item.url.toLowerCase();
-          const queryLower = query.toLowerCase();
+    return {
+      valid: integrityValid,
+      quality: loadQuality,
+      stats: {
+        historySize,
+        domainsSize,
+        wordsSize,
+        faviconsSize
+      },
+      details: {
+        hasMinUrls,
+        hasIndexes,
+        hasValidData,
+        minRequired: Math.min(ULTRA_CACHE.config.minUrlsForValidCache, 100)
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ Error validando integridad del cache ULTRA:', error);
+    ULTRA_CACHE.state.integrityValid = false;
+    ULTRA_CACHE.state.loadQuality = 'none';
+    return { valid: false, quality: 'none', error: error.message };
+  }
+}
+
+// CARGAR CACHE ULTRA desde storage persistente
+async function loadUltraCacheFromStorage() {
+  try {
+    console.log('🔄 Cargando cache ULTRA desde storage...');
+    
+    const result = await chrome.storage.local.get([
+      'ultra_cache_history',
+      'ultra_cache_favicons', 
+      'ultra_cache_state',
+      'ultra_cache_config'
+    ]);
+    
+    // Cargar configuración
+    if (result.ultra_cache_config) {
+      Object.assign(ULTRA_CACHE.config, result.ultra_cache_config);
+    }
+    
+    // Cargar estado
+    if (result.ultra_cache_state) {
+      Object.assign(ULTRA_CACHE.state, result.ultra_cache_state);
+    }
+    
+    // Cargar historial
+    if (result.ultra_cache_history) {
+      ULTRA_CACHE.memory.history = new Map(result.ultra_cache_history);
+      console.log(`📊 Cache ULTRA cargado: ${ULTRA_CACHE.memory.history.size} URLs`);
+    }
+    
+    // Cargar favicons
+    if (result.ultra_cache_favicons) {
+      ULTRA_CACHE.memory.favicons = new Map(result.ultra_cache_favicons);
+      console.log(`🎨 Favicons cargados: ${ULTRA_CACHE.memory.favicons.size}`);
+    }
+    
+    // Reconstruir índices
+    rebuildUltraCacheIndexes();
+    
+    // VALIDAR INTEGRIDAD del cache cargado
+    const integrity = validateUltraCacheIntegrity();
+    
+    if (integrity.valid) {
+      ULTRA_CACHE.state.isLoaded = true;
+      console.log(`✅ Cache ULTRA cargado desde storage (${integrity.quality} quality)`);
+      return true;
+    } else {
+      console.warn(`⚠️ Cache ULTRA cargado pero integridad inválida:`, integrity);
+      ULTRA_CACHE.state.isLoaded = false;
+      ULTRA_CACHE.state.integrityValid = false;
+      return false; // Forzar recarga completa
+    }
+    
+  } catch (error) {
+    console.error('❌ Error cargando cache ULTRA:', error);
+    ULTRA_CACHE.state.isLoaded = false;
+    ULTRA_CACHE.state.integrityValid = false;
+    return false;
+  }
+}
+
+// GUARDAR CACHE ULTRA en storage persistente
+async function saveUltraCacheToStorage() {
+  try {
+    const data = {
+      ultra_cache_history: Array.from(ULTRA_CACHE.memory.history.entries()),
+      ultra_cache_favicons: Array.from(ULTRA_CACHE.memory.favicons.entries()),
+      ultra_cache_state: ULTRA_CACHE.state,
+      ultra_cache_config: ULTRA_CACHE.config
+    };
+    
+    await chrome.storage.local.set(data);
+    console.log('💾 Cache ULTRA guardado en storage');
+    
+  } catch (error) {
+    console.error('❌ Error guardando cache ULTRA:', error);
+  }
+}
+
+// CACHEAR FAVICON de un dominio
+async function cacheFavicon(domain) {
+  try {
+    // Verificar si ya está cacheado
+    if (ULTRA_CACHE.memory.favicons.has(domain)) {
+      return ULTRA_CACHE.memory.favicons.get(domain);
+    }
+    
+    // Limpiar cache de favicons si es muy grande
+    if (ULTRA_CACHE.memory.favicons.size >= ULTRA_CACHE.config.faviconCacheSize) {
+      const entries = Array.from(ULTRA_CACHE.memory.favicons.entries());
+      const oldestEntries = entries.slice(0, 100); // Eliminar 100 más antiguos
+      oldestEntries.forEach(([key]) => ULTRA_CACHE.memory.favicons.delete(key));
+    }
+    
+    // URL del favicon
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+    
+    // Descargar favicon
+    const response = await fetch(faviconUrl);
+    if (response.ok) {
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      return new Promise((resolve) => {
+        reader.onload = () => {
+          const base64 = reader.result;
           
-          // Coincidencias: dominio empieza con query, o URL contiene query
-          return domain.startsWith(queryLower) || 
-                 url.pathname.toLowerCase().includes(queryLower) ||
-                 fullUrl.includes(queryLower);
-        } catch (e) {
-          return false;
-        }
-      })
-      // Ordenación inteligente: combina frecuencia (visitCount) con recencia (lastVisitTime)
-      .sort((a, b) => {
-        const queryLower = query.toLowerCase();
-        
-        try {
-          const urlA = new URL(a.url);
-          const urlB = new URL(b.url);
-          const domainA = urlA.hostname.replace('www.', '');
-          const domainB = urlB.hostname.replace('www.', '');
+          // Guardar en cache
+          ULTRA_CACHE.memory.favicons.set(domain, {
+            url: faviconUrl,
+            data: base64,
+            timestamp: Date.now()
+          });
           
-          // Prioridad máxima: coincidencia exacta al inicio del dominio
-          const exactMatchA = domainA.startsWith(queryLower);
-          const exactMatchB = domainB.startsWith(queryLower);
+          ULTRA_CACHE.state.totalFavicons = ULTRA_CACHE.memory.favicons.size;
           
-          if (exactMatchA && !exactMatchB) return -1;
-          if (!exactMatchA && exactMatchB) return 1;
-        } catch (e) {
-          // Continuar con ordenación normal si hay error
-        }
-        
-        // Score híbrido: 70% frecuencia + 30% recencia
-        const now = Date.now();
-        const dayInMs = 24 * 60 * 60 * 1000;
-        
-        // Score de recencia (0-1, donde 1 = visitado hoy)
-        const recencyScoreA = Math.max(0, 1 - ((now - a.lastVisitTime) / (30 * dayInMs)));
-        const recencyScoreB = Math.max(0, 1 - ((now - b.lastVisitTime) / (30 * dayInMs)));
-        
-        // Score de frecuencia normalizado (log para evitar dominancia extrema)
-        const freqScoreA = Math.log(a.visitCount + 1);
-        const freqScoreB = Math.log(b.visitCount + 1);
-        
-        // Score final combinado
-        const scoreA = (freqScoreA * 0.7) + (recencyScoreA * 0.3);
-        const scoreB = (freqScoreB * 0.7) + (recencyScoreB * 0.3);
-        
-        return scoreB - scoreA;
+          // Guardar en storage (async)
+          saveUltraCacheToStorage();
+          
+          resolve(base64);
+        };
+        reader.readAsDataURL(blob);
       });
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.warn(`Error cacheando favicon para ${domain}:`, error);
+    return null;
+  }
+}
+
+// OBTENER FAVICON cacheado
+function getCachedFavicon(domain) {
+  const cached = ULTRA_CACHE.memory.favicons.get(domain);
+  if (cached) {
+    return cached.data;
+  }
+  
+  // Si no está cacheado, iniciar cacheo en background
+  cacheFavicon(domain);
+  return null;
+}
+
+// RECONSTRUIR ÍNDICES del cache ULTRA
+function rebuildUltraCacheIndexes() {
+  ULTRA_CACHE.memory.domains.clear();
+  ULTRA_CACHE.memory.words.clear();
+  
+  let domainCount = 0;
+  let wordCount = 0;
+  
+  for (const [url, item] of ULTRA_CACHE.memory.history) {
+    try {
+      const urlObj = new URL(url);
+      const domain = urlObj.hostname.replace('www.', '');
+      
+      // Indexar por dominio
+      if (!ULTRA_CACHE.memory.domains.has(domain)) {
+        ULTRA_CACHE.memory.domains.set(domain, []);
+        domainCount++;
+      }
+      ULTRA_CACHE.memory.domains.get(domain).push(item);
+      
+      // Indexar por palabras del título
+      const titleWords = item.title.toLowerCase().split(/\s+/);
+      titleWords.forEach(word => {
+        if (word.length > 2 && word.length < 20) {
+          if (!ULTRA_CACHE.memory.words.has(word)) {
+            ULTRA_CACHE.memory.words.set(word, []);
+            wordCount++;
+          }
+          ULTRA_CACHE.memory.words.get(word).push(item);
+        }
+      });
+      
+    } catch (e) {
+      // Ignorar URLs malformadas
+    }
+  }
+  
+  ULTRA_CACHE.state.totalDomains = domainCount;
+  console.log(`🔍 Índices reconstruidos: ${domainCount} dominios, ${wordCount} palabras`);
+  
+  // Validar integridad después de reconstruir índices
+  validateUltraCacheIntegrity();
+}
+
+// CARGAR CACHE ULTRA - Función principal
+async function loadUltraCache(forceRebuild = false, progressCallback = null) {
+  // SIEMPRE intentar cargar si no está cargado, incluso si está cargando
+  if (ULTRA_CACHE.state.isLoaded && !forceRebuild) {
+    return { success: true, message: 'Cache ULTRA ya cargado' };
+  }
+  
+  // Si está cargando, esperar un poco y verificar de nuevo
+  if (ULTRA_CACHE.state.isLoading) {
+    console.log('⏳ Cache ULTRA ya está cargando, esperando...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Verificar si ya se cargó mientras esperábamos
+    if (ULTRA_CACHE.state.isLoaded) {
+      return { success: true, message: 'Cache ULTRA cargado mientras esperaba' };
+    }
+  }
+  
+  ULTRA_CACHE.state.isLoading = true;
+  
+  try {
+    if (progressCallback) progressCallback('🔄 Iniciando carga del cache ULTRA...');
+    console.log('🔄 Cargando cache ULTRA...');
+    
+    // Intentar cargar desde storage primero
+    if (!forceRebuild) {
+      const loaded = await loadUltraCacheFromStorage();
+      if (loaded && ULTRA_CACHE.state.integrityValid) {
+        const quality = ULTRA_CACHE.state.loadQuality;
+        const message = quality === 'full' ? 'Cache ULTRA cargado desde storage (completo)' : 
+                       quality === 'partial' ? 'Cache ULTRA cargado desde storage (parcial)' :
+                       'Cache ULTRA cargado desde storage';
+        
+        if (progressCallback) progressCallback(`✅ ${message}`);
+        ULTRA_CACHE.state.isLoading = false;
+        return { success: true, message, quality };
+      } else if (loaded && !ULTRA_CACHE.state.integrityValid) {
+        console.log('🔄 Cache cargado pero integridad inválida, reconstruyendo...');
+        if (progressCallback) progressCallback('🔄 Cache corrupto, reconstruyendo...');
+      }
+    }
+    
+    // Limpiar cache si es rebuild forzado
+    if (forceRebuild) {
+      ULTRA_CACHE.memory.history.clear();
+      ULTRA_CACHE.memory.favicons.clear();
+      ULTRA_CACHE.state.isLoaded = false;
+      if (progressCallback) progressCallback('🧹 Cache limpiado, comenzando reconstrucción...');
+    }
+    
+    // Cargar TODO el historial disponible
+    if (progressCallback) progressCallback('📚 Consultando historial completo de Chrome...');
+    const history = await chrome.history.search({
+      text: '', // Buscar todo
+      maxResults: ULTRA_CACHE.config.maxHistoryResults // 100,000 URLs
+    });
+    
+    if (progressCallback) progressCallback(`📊 Encontradas ${history.length} URLs en el historial`);
+    console.log(`📊 Cache ULTRA: ${history.length} URLs encontradas`);
+    
+    let processedCount = 0;
+    let faviconCount = 0;
+    
+    // Procesar cada URL del historial
+    for (let i = 0; i < history.length; i++) {
+      const item = history[i];
+      
+      try {
+        const url = item.url;
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname.replace('www.', '');
+        
+        // Guardar en cache de historial
+        ULTRA_CACHE.memory.history.set(url, {
+          url: url,
+          title: item.title,
+          lastVisitTime: item.lastVisitTime,
+          visitCount: item.visitCount,
+          domain: domain
+        });
+        
+        // Cachear favicon en background
+        if (!ULTRA_CACHE.memory.favicons.has(domain)) {
+          cacheFavicon(domain).then(() => {
+            faviconCount++;
+          });
+        }
+        
+        processedCount++;
+        
+        // Reportar progreso cada 1000 items
+        if (i % 1000 === 0 && progressCallback) {
+          progressCallback(`⚡ Procesando... ${processedCount}/${history.length} URLs`);
+        }
+        
+      } catch (e) {
+        console.warn('URL malformada ignorada:', item.url);
+      }
+    }
+    
+    // Reconstruir índices
+    if (progressCallback) progressCallback('🔍 Reconstruyendo índices...');
+    rebuildUltraCacheIndexes();
+    
+    // Actualizar estado
+    ULTRA_CACHE.state.lastUpdate = Date.now();
+    ULTRA_CACHE.state.totalUrls = processedCount;
+    ULTRA_CACHE.state.memoryUsage = ULTRA_CACHE.memory.history.size * 0.001; // Estimación en MB
+    
+    // VALIDAR INTEGRIDAD antes de marcar como cargado
+    const integrity = validateUltraCacheIntegrity();
+    
+    if (integrity.valid) {
+      ULTRA_CACHE.state.isLoaded = true;
+      
+      // Guardar en storage
+      if (progressCallback) progressCallback('💾 Guardando cache en storage...');
+      await saveUltraCacheToStorage();
+      
+      const quality = ULTRA_CACHE.state.loadQuality;
+      const qualityText = quality === 'full' ? ' (completo)' : quality === 'partial' ? ' (parcial)' : '';
+      
+      if (progressCallback) {
+        progressCallback(`✅ Cache ULTRA cargado exitosamente${qualityText}!\n📊 ${processedCount} URLs procesadas\n🌐 ${ULTRA_CACHE.state.totalDomains} dominios únicos\n🎨 Favicons cacheados: ${ULTRA_CACHE.memory.favicons.size}`);
+      }
+      
+      console.log(`✅ Cache ULTRA cargado exitosamente (${quality})`, ULTRA_CACHE.state);
+      
+      return { success: true, stats: ULTRA_CACHE.state, quality };
+    } else {
+      console.error('❌ Cache ULTRA cargado pero integridad inválida:', integrity);
+      ULTRA_CACHE.state.isLoaded = false;
+      ULTRA_CACHE.state.integrityValid = false;
+      
+      const errorDetails = `Integridad inválida: URLs=${integrity.stats.historySize}, Dominios=${integrity.stats.domainsSize}, Mínimo requerido=${integrity.details.minRequired}`;
+      
+      if (progressCallback) {
+        progressCallback(`❌ Error: Cache cargado pero integridad inválida\n📊 ${processedCount} URLs procesadas\n🔍 ${errorDetails}`);
+      }
+      
+      return { success: false, error: errorDetails, stats: ULTRA_CACHE.state, integrity };
+    }
+    
+  } catch (error) {
+    console.error('❌ Error cargando cache ULTRA:', error);
+    if (progressCallback) progressCallback(`❌ Error: ${error.message}`);
+    return { success: false, error: error.message };
+  } finally {
+    ULTRA_CACHE.state.isLoading = false;
+  }
+}
+
+// Función legacy eliminada - ahora se usa exclusivamente Cache ULTRA
+
+// ACTUALIZAR CACHE ULTRA cuando se visita una nueva página
+async function updateUltraCache(url, title) {
+  if (!ULTRA_CACHE.state.isLoaded) {
+    return; // No actualizar si no está cargado
+  }
+  
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    
+    // Verificar si ya existe en el cache
+    const existingItem = ULTRA_CACHE.memory.history.get(url);
+    
+    if (existingItem) {
+      // Actualizar item existente
+      existingItem.lastVisitTime = Date.now();
+      existingItem.visitCount = (existingItem.visitCount || 0) + 1;
+      existingItem.title = title;
+    } else {
+      // Agregar nueva entrada al cache
+      const newItem = {
+        url: url,
+        title: title,
+        lastVisitTime: Date.now(),
+        visitCount: 1,
+        domain: domain
+      };
+      
+      ULTRA_CACHE.memory.history.set(url, newItem);
+      
+      // Actualizar índices
+      if (!ULTRA_CACHE.memory.domains.has(domain)) {
+        ULTRA_CACHE.memory.domains.set(domain, []);
+        ULTRA_CACHE.state.totalDomains++;
+      }
+      ULTRA_CACHE.memory.domains.get(domain).push(newItem);
+      
+      // Indexar por palabras clave del título
+      const titleWords = title.toLowerCase().split(/\s+/);
+      titleWords.forEach(word => {
+        if (word.length > 2 && word.length < 20) {
+          if (!ULTRA_CACHE.memory.words.has(word)) {
+            ULTRA_CACHE.memory.words.set(word, []);
+          }
+          ULTRA_CACHE.memory.words.get(word).push(newItem);
+        }
+      });
+      
+      // Cachear favicon en background
+      if (!ULTRA_CACHE.memory.favicons.has(domain)) {
+        cacheFavicon(domain);
+      }
+      
+      ULTRA_CACHE.state.totalUrls++;
+      ULTRA_CACHE.state.lastUpdate = Date.now();
+      
+      // Validar integridad después de actualizar
+      validateUltraCacheIntegrity();
+      
+      console.log(`📝 Cache ULTRA actualizado: ${domain}`);
+    }
+    
+    // Guardar en storage cada 10 actualizaciones
+    if (ULTRA_CACHE.state.totalUrls % 10 === 0) {
+      saveUltraCacheToStorage();
+    }
+    
+  } catch (error) {
+    console.error('Error actualizando cache ULTRA:', error);
+  }
+}
+
+// ACTUALIZAR CACHE GLOBAL cuando se visita una nueva página (LEGACY)
+async function updateGlobalHistoryCache(url, title) {
+  if (!isGlobalCacheLoaded) {
+    return; // No actualizar si no está cargado
+  }
+  
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    
+    // Buscar si ya existe en el cache
+    const existingItems = globalHistoryCache.get(domain) || [];
+    const existingUrl = existingItems.find(item => item.url === url);
+    
+    if (!existingUrl) {
+      // Agregar nueva entrada al cache
+      const newItem = {
+        url: url,
+        title: title,
+        lastVisitTime: Date.now(),
+        visitCount: 1
+      };
+      
+      existingItems.push(newItem);
+      globalHistoryCache.set(domain, existingItems);
+      
+      // También indexar por palabras clave del título
+      const titleWords = title.toLowerCase().split(/\s+/);
+      titleWords.forEach(word => {
+        if (word.length > 2) {
+          if (!globalHistoryCache.has(word)) {
+            globalHistoryCache.set(word, []);
+          }
+          globalHistoryCache.get(word).push(newItem);
+        }
+      });
+      
+      console.log(`📝 Cache global actualizado: ${domain}`);
+    }
+  } catch (error) {
+    console.error('Error actualizando cache global:', error);
+  }
+}
+
+// OBTENER INFORMACIÓN DEL CACHE GLOBAL
+async function getGlobalCacheInfo() {
+  try {
+    const stats = await chrome.storage.local.get(['globalCacheStats', 'globalCacheLoaded', 'globalCacheTimestamp']);
+    
+    const cacheInfo = {
+      isLoaded: isGlobalCacheLoaded,
+      isLoading: globalCacheLoading,
+      cacheSize: globalHistoryCache.size,
+      stats: stats.globalCacheStats || null,
+      lastLoaded: stats.globalCacheTimestamp || null,
+      memoryUsage: globalHistoryCache.size * 0.001 // Estimación aproximada en MB
+    };
+    
+    return { success: true, cacheInfo };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// OBTENER DOMINIOS MÁS FRECUENTES
+async function getTopDomains(limit = 20) {
+  try {
+    const domains = [];
+    
+    for (const [domain, items] of globalHistoryCache.entries()) {
+      if (domain.includes('.') && !domain.includes(' ')) { // Solo dominios reales
+        domains.push({
+          domain: domain,
+          count: items.length,
+          lastVisit: Math.max(...items.map(item => item.lastVisitTime || 0))
+        });
+      }
+    }
+    
+    // Ordenar por frecuencia y recencia
+    domains.sort((a, b) => {
+      if (a.count !== b.count) return b.count - a.count;
+      return b.lastVisit - a.lastVisit;
+    });
+    
+    return { success: true, domains: domains.slice(0, limit) };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// LIMPIAR CACHE GLOBAL
+async function clearGlobalCache() {
+  try {
+    globalHistoryCache.clear();
+    isGlobalCacheLoaded = false;
+    
+    await chrome.storage.local.remove(['globalCacheStats', 'globalCacheLoaded', 'globalCacheTimestamp']);
+    
+    return { success: true, message: 'Cache global limpiada' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// BÚSQUEDA ULTRA - Función principal de búsqueda
+async function searchUltraCache(query, sendResponse) {
+  try {
+    // Cargar cache ULTRA si no está cargado o si la integridad es inválida
+    if (!ULTRA_CACHE.state.isLoaded || !ULTRA_CACHE.state.integrityValid) {
+      console.log('🔄 Cache ULTRA no cargado o integridad inválida, cargando automáticamente...');
+      await loadUltraCache();
+      
+      // Verificar de nuevo después de cargar
+      if (!ULTRA_CACHE.state.isLoaded || !ULTRA_CACHE.state.integrityValid) {
+        const integrity = validateUltraCacheIntegrity();
+        const errorMsg = `Cache ULTRA no disponible: URLs=${integrity.stats.historySize}, Dominios=${integrity.stats.domainsSize}, Válido=${integrity.valid}`;
+        console.error('❌ Cache ULTRA no se pudo cargar o validar:', errorMsg);
+        sendResponse({ success: false, error: errorMsg, integrity });
+        return;
+      }
+    }
+    
+    const queryLower = query.toLowerCase();
+    let relevantUrls = [];
+    
+    // Búsqueda mejorada para queries cortas (1-2 caracteres)
+    if (query.length <= 2) {
+      // Para queries cortas, buscar más ampliamente
+      
+      // 1. Buscar por dominio exacto
+      if (ULTRA_CACHE.memory.domains.has(queryLower)) {
+        relevantUrls.push(...ULTRA_CACHE.memory.domains.get(queryLower));
+      }
+      
+      // 2. Buscar por dominios que empiecen con la query (prioridad alta)
+      for (const [domain, items] of ULTRA_CACHE.memory.domains.entries()) {
+        if (domain.startsWith(queryLower) && domain !== queryLower) {
+          relevantUrls.push(...items);
+        }
+      }
+      
+      // 3. Buscar por dominios que contengan la query (para queries de 2 caracteres)
+      if (query.length === 2) {
+        for (const [domain, items] of ULTRA_CACHE.memory.domains.entries()) {
+          if (domain.includes(queryLower) && !domain.startsWith(queryLower)) {
+            relevantUrls.push(...items);
+          }
+        }
+      }
+      
+      // 4. Buscar por palabras clave del título (solo palabras de 2+ caracteres)
+      for (const [word, items] of ULTRA_CACHE.memory.words.entries()) {
+        if (word.startsWith(queryLower) && word.length >= 2) {
+          relevantUrls.push(...items);
+        }
+      }
+      
+    } else {
+      // Para queries más largas, usar lógica normal
+      
+      // Buscar por dominio exacto
+      if (ULTRA_CACHE.memory.domains.has(queryLower)) {
+        relevantUrls.push(...ULTRA_CACHE.memory.domains.get(queryLower));
+      }
+      
+      // Buscar por dominios que empiecen con la query
+      for (const [domain, items] of ULTRA_CACHE.memory.domains.entries()) {
+        if (domain.startsWith(queryLower) && domain !== queryLower) {
+          relevantUrls.push(...items);
+        }
+      }
+      
+      // Buscar por palabras clave del título
+      for (const [word, items] of ULTRA_CACHE.memory.words.entries()) {
+        if (word.startsWith(queryLower) && word.length > 2) {
+          relevantUrls.push(...items);
+        }
+      }
+    }
+    
+    // Eliminar duplicados
+    const seen = new Set();
+    relevantUrls = relevantUrls.filter(item => {
+      if (seen.has(item.url)) {
+        return false;
+      }
+      seen.add(item.url);
+      return true;
+    });
+    
+    // Ordenar por relevancia con algoritmo mejorado para queries cortas
+    relevantUrls.sort((a, b) => {
+      const queryLower = query.toLowerCase();
+      
+      // Prioridad máxima: coincidencia exacta en dominio
+      const domainA = a.domain || '';
+      const domainB = b.domain || '';
+      const exactMatchA = domainA.startsWith(queryLower);
+      const exactMatchB = domainB.startsWith(queryLower);
+      
+      if (exactMatchA && !exactMatchB) return -1;
+      if (!exactMatchA && exactMatchB) return 1;
+      
+      // Para queries cortas, priorizar recencia sobre frecuencia
+      const now = Date.now();
+      const dayInMs = 24 * 60 * 60 * 1000;
+      
+      const recencyScoreA = Math.max(0, 1 - ((now - a.lastVisitTime) / (30 * dayInMs)));
+      const recencyScoreB = Math.max(0, 1 - ((now - b.lastVisitTime) / (30 * dayInMs)));
+      
+      const freqScoreA = Math.log(a.visitCount + 1);
+      const freqScoreB = Math.log(b.visitCount + 1);
+      
+      let scoreA, scoreB;
+      
+      if (query.length <= 2) {
+        // Para queries cortas: 60% recencia, 40% frecuencia
+        scoreA = (recencyScoreA * 0.6) + (freqScoreA * 0.4);
+        scoreB = (recencyScoreB * 0.6) + (freqScoreB * 0.4);
+      } else {
+        // Para queries largas: 30% recencia, 70% frecuencia
+        scoreA = (freqScoreA * 0.7) + (recencyScoreA * 0.3);
+        scoreB = (freqScoreB * 0.7) + (recencyScoreB * 0.3);
+      }
+      
+      return scoreB - scoreA;
+    });
     
     if (relevantUrls.length > 0) {
       const bestMatch = relevantUrls[0];
       let suggestion = '';
       
       // Determinar la mejor sugerencia
-      const url = new URL(bestMatch.url);
-      const domain = url.hostname.replace('www.', '');
+      const domain = bestMatch.domain || '';
       const queryLower = query.toLowerCase();
       
       if (domain.startsWith(queryLower)) {
-        // Si el dominio empieza con la query, sugerir el dominio completo
         suggestion = domain;
-      } else if (url.pathname.length > 1) {
-        // Si tiene path, sugerir dominio + path
-        suggestion = domain + url.pathname;
       } else {
-        // Fallback al dominio
         suggestion = domain;
       }
       
-      // Intentar obtener favicon
-      let favicon = null;
-      try {
-        favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
-      } catch (e) {
-        // Error silencioso para favicon
-      }
+      // Obtener favicon cacheado
+      const favicon = getCachedFavicon(domain);
       
       const response = { 
         success: true, 
@@ -754,17 +1536,37 @@ async function searchHistoryForAutocomplete(query, sendResponse) {
         visitCount: bestMatch.visitCount,
         lastVisit: bestMatch.lastVisitTime,
         title: bestMatch.title,
-        favicon: favicon
+        favicon: favicon,
+        cacheSource: 'ULTRA'
       };
       
-      // Guardar en cache
-      historyCache.set(cacheKey, response);
+      console.log(`🔍 Cache ULTRA: ${relevantUrls.length} resultados para "${query}"`);
       sendResponse(response);
     } else {
-      const response = { success: true, suggestion: null };
-      historyCache.set(cacheKey, response);
-      sendResponse(response);
+      sendResponse({ success: true, suggestion: null, cacheSource: 'ULTRA' });
     }
+    
+  } catch (error) {
+    console.error('Error en búsqueda ULTRA:', error);
+    sendResponse({ success: false, error: error.message });
+  }
+}
+
+// Buscar en historial para autocompletado inteligente (CON CACHE GLOBAL) - LEGACY
+async function searchHistoryForAutocomplete(query, sendResponse) {
+  try {
+    // USAR EXCLUSIVAMENTE CACHE ULTRA - SIEMPRE CARGADO Y PERMANENTE
+    if (!ULTRA_CACHE.state.isLoaded || !ULTRA_CACHE.state.integrityValid) {
+      console.log('🔄 Cache ULTRA no cargado o integridad inválida, cargando automáticamente...');
+      await loadUltraCache();
+    }
+    
+    // Usar la función searchUltraCache que ya está optimizada
+    await searchUltraCache(query, sendResponse);
+    return;
+    
+    // La función searchUltraCache ya maneja toda la lógica de búsqueda y respuesta
+    // No necesitamos código adicional aquí
   } catch (error) {
     console.error('Error en autocompletado:', error);
     sendResponse({ success: false, error: error.message });

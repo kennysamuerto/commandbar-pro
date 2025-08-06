@@ -18,6 +18,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### [1.4.0] - 2025-08-07
+
+#### ✨ Added
+- **🖼️ New Ultra Cache System**: 
+
+#### 🐛 Fixed
+- **Stability improvements**: Improvements for stability
+
 ### [1.3.0] - 2025-08-01
 
 #### ✨ Added
@@ -181,6 +189,14 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### [1.4.0] - 2025-08-07
+
+#### ✨ Agregado
+- **🖼️ Nuevo sistema de Cache Ultra**: 
+
+#### 🐛 Fixed
+- **Mejoras en establidad**: Mejoras para la estabilidad
 
 ### [1.3.0] - 2025-08-01
 
